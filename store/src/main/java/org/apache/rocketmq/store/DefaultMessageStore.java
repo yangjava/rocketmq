@@ -61,31 +61,32 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-
+    // 消息存储配置属性。
     private final MessageStoreConfig messageStoreConfig;
     // CommitLog
+    // CommitLog 文件的存储实现类。
     private final CommitLog commitLog;
-
+    // 消息队列存储缓存表，按消息主题分组。
     private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable;
-
+    // 消息队列文件ConsumeQueue刷盘线程。
     private final FlushConsumeQueueService flushConsumeQueueService;
-
+    // 清除CommitLog 文件服务。
     private final CleanCommitLogService cleanCommitLogService;
-
+    // 清除ConsumeQueue 文件服务。
     private final CleanConsumeQueueService cleanConsumeQueueService;
-
+    // 索引文件实现类。
     private final IndexService indexService;
-
+    // MappedFile 分配服务
     private final AllocateMappedFileService allocateMappedFileService;
-
+    // CommitLog 消息分发，根据CommitLog文件构建ConsumeQueue 、IndexFile 文件。
     private final ReputMessageService reputMessageService;
-
+    // 存储HA 机制。
     private final HAService haService;
 
     private final ScheduleMessageService scheduleMessageService;
 
     private final StoreStatsService storeStatsService;
-
+    // 消息堆内存缓存。
     private final TransientStorePool transientStorePool;
 
     private final RunningFlags runningFlags = new RunningFlags();
@@ -94,15 +95,17 @@ public class DefaultMessageStore implements MessageStore {
     private final ScheduledExecutorService scheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread"));
     private final BrokerStatsManager brokerStatsManager;
+    // 消息拉取长轮询模式消息达到监听器。
     private final MessageArrivingListener messageArrivingListener;
+    // Broker 配置属性。
     private final BrokerConfig brokerConfig;
 
     private volatile boolean shutdown = true;
-
+    // 文件刷盘检测点。
     private StoreCheckpoint storeCheckpoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
-
+    // CommitLog 文件转发请求。
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
     private RandomAccessFile lockFile;
@@ -170,6 +173,16 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * @throws IOException
+     */
+    /**
+     * 由于RocketMQ 存储首先将消息全量存储在Commitlog 文件中，
+     * 然后异步生成转发任务更新ConsumeQueue 、Index 文件。
+     * 如果消息成功存储到Commitlog 文件中，转发任务未成功执行，
+     * 此时消息服务器Broker 由于某个原因看机，
+     * 导致Commitlog 、ConsumeQueue 、IndexFile 文件数据不一致。
+     * 如果不加以人工修复的话，会有一部分消息即便在Commitlog文件中存在，
+     * 但由于并没有转发到Consumequeue ，这部分消息将永远不会被消费者消费。
+     * 那RocketMQ 是如何使Commitlog 、消息消费队列（ ConsumeQueue ）达到最终一致性的呢？
      */
     public boolean load() {
         boolean result = true;
@@ -352,11 +365,12 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
+        // 如果当前Broker 停止工作则拒绝消息写入
         if (this.shutdown) {
             log.warn("message store has shutdown, so putMessage is forbidden");
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
-
+        // Broker 为SLAVE 角色则拒绝消息写入
         if (BrokerRole.SLAVE == this.messageStoreConfig.getBrokerRole()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -365,7 +379,7 @@ public class DefaultMessageStore implements MessageStore {
 
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
-
+        // 当前Rocket 不支持写入则拒绝消息写入
         if (!this.runningFlags.isWriteable()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -376,17 +390,17 @@ public class DefaultMessageStore implements MessageStore {
         } else {
             this.printTimes.set(0);
         }
-
+        // 如果消息主题长度超过127个字符
         if (msg.getTopic().length() > Byte.MAX_VALUE) {
             log.warn("putMessage message topic length too long " + msg.getTopic().length());
             return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
         }
-
+        // 消息属性长度超过65536 个字符将拒绝该消息写入
         if (msg.getPropertiesString() != null && msg.getPropertiesString().length() > Short.MAX_VALUE) {
             log.warn("putMessage message properties length too long " + msg.getPropertiesString().length());
             return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
         }
-
+       // OSPageCache繁忙将拒绝该消息写入
         if (this.isOSPageCacheBusy()) {
             return new PutMessageResult(PutMessageStatus.OS_PAGECACHE_BUSY, null);
         }
@@ -1219,7 +1233,11 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     private void addScheduleTask() {
-
+        /**
+         * RocketMQ 会每隔10s 调度一次cleanFilesPeriodically ，
+         * 检测是否需要清除过期文件。
+         * 执行频率可以通过设置cleanResourceInterval ，默认为10s 。
+          */
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -1263,6 +1281,9 @@ public class DefaultMessageStore implements MessageStore {
         // }, 1, 1, TimeUnit.HOURS);
     }
 
+    /**
+     * 分别执行清除消息存储文件（ Commitlog 文件）与消息消费队列文件（ ConsumeQueue文件） 。
+     */
     private void cleanFilesPeriodically() {
         this.cleanCommitLogService.run();
         this.cleanConsumeQueueService.run();
@@ -1422,6 +1443,9 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * 消息消费队列转发任务实现类为： CommitLogDispatcherBuildConsumeQueue ，内部最终将调用putMessagePositioninfo 方法。
+     */
     public void putMessagePositionInfo(DispatchRequest dispatchRequest) {
         ConsumeQueue cq = this.findConsumeQueue(dispatchRequest.getTopic(), dispatchRequest.getQueueId());
         cq.putMessagePositionInfoWrapper(dispatchRequest);
@@ -1534,12 +1558,19 @@ public class DefaultMessageStore implements MessageStore {
 
         private void deleteExpiredFiles() {
             int deleteCount = 0;
+            // 文件保留时间， 也就是从最后一次更新时间到现在， 如果超过了该时间， 则认为是过期文件， 可以被删除。
             long fileReservedTime = DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
+            // 删除物理文件的间隔，因为在一次清除过程中， 可能需要被删除的文件不止一个，该值指定两次删除文件的问隔时间。
             int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
+            // 在清除过期文件时， 如果该文件被其他线程所占用（引用次数大于0 ，比如读取消息）， 此时会阻止此次删除任务， 同时在第一次试图删除该文件时记录当前时间戳，
+            // 表示第一次拒绝删除之后能保留的最大时间，在此时间内， 同样可以被拒绝删除， 同时会将引用减少1000 个，超过该时间间隔后，文件将被强制删除。
             int destroyMapedFileIntervalForcibly = DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
 
+            // 指定删除文件的时间点， RocketMQ 通过delete When 设置一天的固定时间执行一次删除过期文件操作， 默认为凌晨4 点。
             boolean timeup = this.isTimeToDelete();
+            // 磁盘空间是否充足，如果磁盘空间不充足，则返回true ，表示应该触发过期文件删除操作。
             boolean spacefull = this.isSpaceToDelete();
+            // 预留，手工触发，可以通过调用excuteDeleteFilesManualy 方法手工触发过期文件删除，目前RocketMQ 暂未封装手工触发文件删除的命令。
             boolean manualDelete = this.manualDeleteFileSeveralTimes > 0;
 
             if (timeup || spacefull || manualDelete) {
@@ -1594,13 +1625,16 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         private boolean isSpaceToDelete() {
+            // 表示commitlog 、consumequeue 文件所在磁盘分区的最大使用量，如果超过该值， 则需要立即清除过期文件。
             double ratio = DefaultMessageStore.this.getMessageStoreConfig().getDiskMaxUsedSpaceRatio() / 100.0;
-
+            //  表示是否需要立即执行清除过期文件操作。
             cleanImmediately = false;
 
             {
                 String storePathPhysic = DefaultMessageStore.this.getMessageStoreConfig().getStorePathCommitLog();
+                // 当前commitlog 目录所在的磁盘分区的磁盘使用率，通过File#getTotalSpace（）获取文件所在磁盘分区的总容量，通过File#getFreeSpace() 获取文件所在磁盘分区剩余容量。
                 double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
+                // 通过系统参数－Drocketmq.broker.diskSpace WamingLevelRatio设置，默认0.90 。如果磁盘分区使用率超过该阔值，将设置磁盘不可写，此时会拒绝新消息的写入。
                 if (physicRatio > diskSpaceWarningLevelRatio) {
                     boolean diskok = DefaultMessageStore.this.runningFlags.getAndMakeDiskFull();
                     if (diskok) {
@@ -1608,6 +1642,7 @@ public class DefaultMessageStore implements MessageStore {
                     }
 
                     cleanImmediately = true;
+                    // 通过系统参数－Drocketmq.broker.diskSpaceCleanF orciblyRatio设置， 默认0.85 。如果磁盘分区使用超过该阔值，建议立即执行过期文件清除，但不会拒绝新消息的写入。
                 } else if (physicRatio > diskSpaceCleanForciblyRatio) {
                     cleanImmediately = true;
                 } else {
@@ -1884,6 +1919,10 @@ public class DefaultMessageStore implements MessageStore {
             }
         }
 
+        /**
+         * ReputMessageService 线程每执行一次任务推送休息1毫秒就继续尝试推送消息到消息消费队列和索引文件，
+         * 消息消费转发的核心实现在doReput 方法中实现。
+         */
         @Override
         public void run() {
             DefaultMessageStore.log.info(this.getServiceName() + " service started");

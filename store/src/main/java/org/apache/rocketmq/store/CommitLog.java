@@ -42,6 +42,12 @@ import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 /**
  * Store all metadata downtime for recovery, data protection reliability
  */
+
+/**
+ * Commitlog 文件存储目录为｛ ROCKET_HOME }/store/commitlog 目录，
+ * 每一个文件默认1G ，一个文件写满后再创建另外一个，以该文件中第一个偏移量为文件名，
+ * 偏移量小于20 位用0 补齐。
+ */
 public class CommitLog {
     // Message's MAGIC CODE daa320a7
     public final static int MESSAGE_MAGIC_CODE = -626843481;
@@ -372,24 +378,49 @@ public class CommitLog {
         return new DispatchRequest(-1, false /* success */);
     }
 
+    /**
+     * 根据消息、体的长度、主题的长度、属性的长度结合消息存储格式计算消息的总长度。
+     * RocketMQ 消息存储格式如下。
+     *
+     * * TOTALSIZE ： 该消息条目总长度，4 字节。
+     * * MAGICCODE ： 魔数， 4 字节。固定值0xdaa320a7 。
+     * * BODYCRC ： 消息体crc校验码， 4 字节。
+     * * QUEUEID ： 消息消费队列ID , 4 字节。
+     * * FLAG ： 消息FLAG , RocketMQ 不做处理， 供应用程序使用，默认4 字节。
+     * * QUEUEOFFSET ：消息在消息消费队列的偏移量， 8 字节。
+     * * PHYSICALOFFSET ： 消息在CommitLog 文件中的偏移量， 8 字节。
+     * * SYSFLAG ： 消息系统Flag ，例如是否压缩、是否是事务消息等， 4 字节。
+     * * BORNTIMESTAMP ： 消息生产者调用消息发送API 的时间戳， 8 字节。
+     * * BORNHOST ：消息发送者IP 、端口号， 8 字节。
+     * * STORETIMESTAMP ： 消息存储时间戳， 8 字节。
+     * * STOREHOSTADDRESS: Broker 服务器IP＋端口号， 8 字节。
+     * * RECONSUMETIMES ： 消息重试次数， 4 字节。
+     * * Prepared Transaction Offset ： 事务消息物理偏移量， 8 字节。
+     * * BodyLength ：消息体长度， 4 字节。
+     * * Body ： 消息体内容，长度为bodyLen th 中存储的值。
+     * * TopieLength ： 主题存储长度， 1 字节，表示主题名称不能超过255 个字符。
+     * * Topic ： 主题，长度为TopiCLength 中存储的值。
+     * * PropertiesLength ： 消息属性长度， 2 字节， 表示消息属性长度不能超过6 553 6 个字符。
+     * * Properties ： 消息属性，长度为PropertiesLength 中存储的值。
+     */
     protected static int calMsgLength(int bodyLength, int topicLength, int propertiesLength) {
-        final int msgLen = 4 //TOTALSIZE
-            + 4 //MAGICCODE
-            + 4 //BODYCRC
-            + 4 //QUEUEID
-            + 4 //FLAG
-            + 8 //QUEUEOFFSET
-            + 8 //PHYSICALOFFSET
-            + 4 //SYSFLAG
-            + 8 //BORNTIMESTAMP
-            + 8 //BORNHOST
-            + 8 //STORETIMESTAMP
-            + 8 //STOREHOSTADDRESS
-            + 4 //RECONSUMETIMES
-            + 8 //Prepared Transaction Offset
-            + 4 + (bodyLength > 0 ? bodyLength : 0) //BODY
-            + 1 + topicLength //TOPIC
-            + 2 + (propertiesLength > 0 ? propertiesLength : 0) //propertiesLength
+        final int msgLen = 4 //TOTALSIZE  该消息条目总长度，4 字节。
+            + 4 //MAGICCODE   魔数， 4 字节。固定值0xdaa320a7 。
+            + 4 //BODYCRC     消息体crc校验码， 4 字节。
+            + 4 //QUEUEID     消息消费队列ID , 4 字节。
+            + 4 //FLAG        消息FLAG , RocketMQ 不做处理， 供应用程序使用，默认4 字节。
+            + 8 //QUEUEOFFSET  消息在消息消费队列的偏移量， 8 字节。
+            + 8 //PHYSICALOFFSET  消息在CommitLog 文件中的偏移量， 8 字节
+            + 4 //SYSFLAG       消息系统Flag ，例如是否压缩、是否是事务消息等， 4 字节。
+            + 8 //BORNTIMESTAMP  消息生产者调用消息发送API 的时间戳， 8 字节。
+            + 8 //BORNHOST       消息发送者IP 、端口号， 8 字节。
+            + 8 //STORETIMESTAMP  消息存储时间戳， 8 字节。
+            + 8 //STOREHOSTADDRESS  Broker 服务器IP＋端口号， 8 字节。
+            + 4 //RECONSUMETIMES     消息重试次数， 4 字节。
+            + 8 //Prepared Transaction Offset  事务消息物理偏移量， 8 字节。
+            + 4 + (bodyLength > 0 ? bodyLength : 0) //BODY  消息体长度， 4 字节。
+            + 1 + topicLength //TOPIC    主题存储长度， 1 字节，表示主题名称不能超过255 个字符。
+            + 2 + (propertiesLength > 0 ? propertiesLength : 0) //propertiesLength  消息属性长度， 2 字节， 表示消息属性长度不能超过6 553 6 个字符。
             + 0;
         return msgLen;
     }
@@ -533,8 +564,12 @@ public class CommitLog {
         return beginTimeInLock;
     }
 
+    /**
+     * 在写入CommitLog 之前，先申请putMessageLock，也就是将消息存储到CommitLog 文件中是串行的。
+     */
     public PutMessageResult putMessage(final MessageExtBrokerInner msg) {
         // Set the storage time
+        // 设置消息的存储时间
         msg.setStoreTimestamp(System.currentTimeMillis());
         // Set the message body BODY CRC (consider the most appropriate setting
         // on the client)
@@ -581,7 +616,14 @@ public class CommitLog {
             // Here settings are stored timestamp, in order to ensure an orderly
             // global
             msg.setStoreTimestamp(beginLockTimestamp);
-
+            /**
+             * 如果mappedFile 为空，
+             * 表明$ {ROCKET_HOME}/store/commitlog 目录下不存在任何文件，
+             * 说明本次消息是第一次消息发送，用偏移量0 创建第一个commit 文件，
+             * 文件为00000000000000000000 ，
+             * 如果文件创建失败，抛出CREATE_MAPEDFILE_FAILED ，
+             * 很有可能是磁盘空间不足或权限不够。
+             */
             if (null == mappedFile || mappedFile.isFull()) {
                 mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
             }
@@ -590,7 +632,7 @@ public class CommitLog {
                 beginTimeInLock = 0;
                 return new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null);
             }
-
+            // 将消息追加到MappedFile 中。
             result = mappedFile.appendMessage(msg, this.appendMessageCallback);
             switch (result.getStatus()) {
                 case PUT_OK:
@@ -628,7 +670,7 @@ public class CommitLog {
         if (eclipseTimeInLock > 500) {
             log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", eclipseTimeInLock, msg.getBody().length, result);
         }
-
+        // 处理完消息追加逻辑后将释放putMessageLock锁。
         if (null != unlockMappedFile && this.defaultMessageStore.getMessageStoreConfig().isWarmMapedFileEnable()) {
             this.defaultMessageStore.unlockMappedFile(unlockMappedFile);
         }
@@ -645,13 +687,18 @@ public class CommitLog {
         return putMessageResult;
     }
 
+    /**
+     * 同步刷盘，指的是在消息追加到内存映射文件的内存中后，立即将数据从内存刷写到磁盘文件，由CommitLog 的handleDiskFlush 方法实现
+     */
     public void handleDiskFlush(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt) {
         // Synchronization flush
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
             if (messageExt.isWaitStoreMsgOK()) {
+                // 构建GroupCommitRequest 同步任务并提交到GroupCommitRequest 。
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                 service.putRequest(request);
+                // 等待同步刷盘任务完成，如果超时则返回刷盘错误， 刷盘成功后正常返回给调用方。
                 boolean flushOK = request.waitForFlush(this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
                 if (!flushOK) {
                     log.error("do groupcommit, wait for flush failed, topic: " + messageExt.getTopic() + " tags: " + messageExt.getTags()
@@ -663,6 +710,17 @@ public class CommitLog {
             }
         }
         // Asynchronous flush
+        /**
+         * 异步刷盘根据是否开启transientStorePoolEnable机制，刷盘实现会有细微差别。
+         * 如果transientStorePoolEnable 为true ,
+         * RocketMQ 会单独申请一个与目标物理文件（ commitlog)同样大小的堆外内存，
+         * 该堆外内存将使用内存锁定，确保不会被置换到虚拟内存中去，
+         * 消息首先追加到堆外内存，
+         * 然后提交到与物理文件的内存映射内存中，
+         * 再flush 到磁盘。
+         * 如果transientStorePoolEnable 为flalse ，
+         * 消息直接追加到与物理文件直接映射的内存中，然后刷写到磁盘中。
+         */
         else {
             if (!this.defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
                 flushCommitLogService.wakeup();
@@ -814,6 +872,10 @@ public class CommitLog {
         return -1;
     }
 
+    /**
+     * 获取当前Commitlog 目录最小偏移量，首先获取目录下的第一个文件，
+     * 如果该文件可用，则返回该文件的起始偏移量，否则返回下一个文件的起始偏移量。
+     */
     public long getMinOffset() {
         MappedFile mappedFile = this.mappedFileQueue.getFirstMappedFile();
         if (mappedFile != null) {
@@ -827,6 +889,13 @@ public class CommitLog {
         return -1;
     }
 
+    /**
+     * 根据偏移量与消息长度查找消息。
+     * 首先根据偏移找到所在的物理偏移量，然后用offset与文件长度取余得到在文件内的偏移量，
+     * 从该偏移量读取size 长度的内容返回即可。
+     * 如果只根据消息偏移查找消息， 则首先找到文件内的偏移量，
+     * 然后尝试读取4个字节获取消息的实际长度， 最后读取指定字节即可。
+     */
     public SelectMappedBufferResult getMessage(final long offset, final int size) {
         int mappedFileSize = this.defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog();
         MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset, offset == 0);
@@ -837,6 +906,11 @@ public class CommitLog {
         return null;
     }
 
+    /**
+     *  根据该offset 返回下一个文件的起始偏移量。
+     *  首先获取一个文件的大小，
+     *  减去（offset%mappedFileSize）其目的是回到下一文件的起始偏移量。
+     */
     public long rollNextFile(final long offset) {
         int mappedFileSize = this.defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog();
         return offset + mappedFileSize - offset % mappedFileSize;
@@ -1039,8 +1113,11 @@ public class CommitLog {
     }
 
     public static class GroupCommitRequest {
+        // 刷盘点偏移量。
         private final long nextOffset;
+        // 倒记数锁存器。
         private final CountDownLatch countDownLatch = new CountDownLatch(1);
+        // 刷盘结果，初始为false。
         private volatile boolean flushOK = false;
 
         public GroupCommitRequest(long nextOffset) {
@@ -1051,11 +1128,21 @@ public class CommitLog {
             return nextOffset;
         }
 
+        /**
+         * GroupCommitService 线程处理GroupCommitRequest 对象后
+         * 将调用wakeupCustomer 方法将消费发送线程唤醒，
+         * 并将刷盘告知GroupCommitRequest 。
+         */
         public void wakeupCustomer(final boolean flushOK) {
             this.flushOK = flushOK;
             this.countDownLatch.countDown();
         }
 
+        /**
+         * 消费发送线程将消息追加到内存映射文件后，
+         * 将同步任务GroupCommitRequest提交到GroupCommitService线程，
+         * 然后调用阻塞等待刷盘结果，超时时间默认为5s 。
+         */
         public boolean waitForFlush(long timeout) {
             try {
                 this.countDownLatch.await(timeout, TimeUnit.MILLISECONDS);
@@ -1070,10 +1157,19 @@ public class CommitLog {
     /**
      * GroupCommit Service
      */
+    /**
+     * 同步刷盘线程实现GroupCommitService
+     */
     class GroupCommitService extends FlushCommitLogService {
+        // 同步刷盘任务暂存容器。
         private volatile List<GroupCommitRequest> requestsWrite = new ArrayList<GroupCommitRequest>();
+        // GroupCommitService 线程每次处理的request 容器，这是一个设计亮点，避免了任务提交与任务执行的锁冲突。
         private volatile List<GroupCommitRequest> requestsRead = new ArrayList<GroupCommitRequest>();
 
+        /**
+         * 客户端提交同步刷盘任务到GroupCommitService 线程，
+         * 如果废线程处于等待状态则将仅供其唤醒。
+         */
         public synchronized void putRequest(final GroupCommitRequest request) {
             synchronized (this.requestsWrite) {
                 this.requestsWrite.add(request);
@@ -1083,12 +1179,30 @@ public class CommitLog {
             }
         }
 
+        /**
+         * 由于避免同步刷盘消费任务与其他消息生产者提交任务直接的锁竞争，
+         * GroupCommitService 提供读容器与写容器，
+         * 这两个容器每执行完一次任务后，交换，继续消费任务。
+         */
         private void swapRequests() {
             List<GroupCommitRequest> tmp = this.requestsWrite;
             this.requestsWrite = this.requestsRead;
             this.requestsRead = tmp;
         }
 
+        /**
+         * 执行刷盘操作，即调用MappedByteBuffer#force 方法。
+         * * 遍历同步刷盘任务列表，根据加入顺序逐一执行刷盘逻辑。
+         * * 调用mappedFileQueue# flush 方法执行刷盘操作，最终会调用MappedByteBuffer#force()方法。
+         * 如果已刷盘指针大于等于提交的刷盘点，表示刷盘成功，
+         * 每执行一次刷盘操作后，
+         * 立即调用GroupCommitReques做wakeupCustomer唤醒消息发送线程并通知刷盘结果。
+         *
+         * * 处理完所有同步刷盘任务后，
+         * 更新刷盘检测点StoreCheckpoint中的physicMsgTimestamp，
+         * 但并没有执行检测点的刷盘操作，
+         * 刷盘检测点的刷盘操作将在刷写消息队列文件时触发。
+         */
         private void doCommit() {
             synchronized (this.requestsRead) {
                 if (!this.requestsRead.isEmpty()) {
@@ -1121,6 +1235,11 @@ public class CommitLog {
             }
         }
 
+        /**
+         * GroupCommitService 每处理一批同步刷盘请求（requestsRead 容器中请求）
+         * 后“休息” 10ms ，
+         * 然后继续处理下一批，其任务的核心实现为doCommit方法。
+          */
         public void run() {
             CommitLog.log.info(this.getServiceName() + " service started");
 
@@ -1190,7 +1309,7 @@ public class CommitLog {
         public ByteBuffer getMsgStoreItemMemory() {
             return msgStoreItemMemory;
         }
-
+        // 创建全局唯一消息ID ，消息ID 有16 字节，消息ID 组成
         public AppendMessageResult doAppend(final long fileFromOffset, final ByteBuffer byteBuffer, final int maxBlank,
             final MessageExtBrokerInner msgInner) {
             // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
@@ -1200,7 +1319,12 @@ public class CommitLog {
 
             this.resetByteBuffer(hostHolder, 8);
             String msgId = MessageDecoder.createMessageId(this.msgIdMemory, msgInner.getStoreHostBytes(hostHolder), wroteOffset);
-
+            /**
+             * 为了消息ID可读性，返回给应用程序的msgId 为字符类型，
+             * 可以通过UtilAll.bytes2string 方法将msgId 字节数组转换成字符串，
+             * 通过Uti1All.string2bytes 方法将msgId字符串还原成16 个字节的字节数组，
+             * 从而根据提取消息偏移量，可以快速通过msgId 找到消息内容。
+             */
             // Record ConsumeQueue information
             keyBuilder.setLength(0);
             keyBuilder.append(msgInner.getTopic());
@@ -1254,9 +1378,12 @@ public class CommitLog {
                     + ", maxMessageSize: " + this.maxMessageSize);
                 return new AppendMessageResult(AppendMessageStatus.MESSAGE_SIZE_EXCEEDED);
             }
-
+            // 如果消息长度＋END_FILE_MIN_BLANK_LENGTH 大于CommitLog 文件的空闲空间，则返回AppendMessageStatus.END_OF_FILE
             // Determines whether there is sufficient free space
             if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
+                // 每个CommitLog 文件最少会空闲8个字节，
+                // 高4 字节存储当前文件剩余空间，低4 字节存储魔数：
+                // CommitLog.BLANK_MAGIC_CODE。
                 this.resetByteBuffer(this.msgStoreItemMemory, maxBlank);
                 // 1 TOTALSIZE
                 this.msgStoreItemMemory.putInt(maxBlank);
@@ -1269,7 +1396,7 @@ public class CommitLog {
                 return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset, maxBlank, msgId, msgInner.getStoreTimestamp(),
                     queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             }
-
+            // Broker 会重新创建一个新的CommitLog 文件来存储该消息。
             // Initialization of storage space
             this.resetByteBuffer(msgStoreItemMemory, msgLen);
             // 1 TOTALSIZE
@@ -1314,14 +1441,15 @@ public class CommitLog {
             this.msgStoreItemMemory.putShort((short) propertiesLength);
             if (propertiesLength > 0)
                 this.msgStoreItemMemory.put(propertiesData);
-
+            // **将消息内容存储到ByteBuffer 中，然后创建AppendMessageResult 。
+            // 这里只是将消息存储在MappedFile 对应的内存映射Buffer 中，并没有刷写到磁盘
             final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
             // Write messages to the queue buffer
             byteBuffer.put(this.msgStoreItemMemory.array(), 0, msgLen);
 
             AppendMessageResult result = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, msgLen, msgId,
                 msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
-
+            // 更新消息队列逻辑偏移量。
             switch (tranType) {
                 case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
                 case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
@@ -1343,6 +1471,7 @@ public class CommitLog {
             //physical offset
             long wroteOffset = fileFromOffset + byteBuffer.position();
             // Record ConsumeQueue information
+            // 获取该消息在消息队列的偏移量。CommitLog 中保存了当前所有消息队列的当前待写入偏移量。
             keyBuilder.setLength(0);
             keyBuilder.append(messageExtBatch.getTopic());
             keyBuilder.append('-');

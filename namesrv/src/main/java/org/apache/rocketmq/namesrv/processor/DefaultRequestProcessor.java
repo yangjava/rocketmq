@@ -57,6 +57,11 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * org.apache.rocketmq.namesrv.processor.DefaultRequestProcessor
+ * 网络处理器解析请求类型， 如果请求类型为RequestCode.REGISTER_BROKER ，
+ * 则请求最终转发到RoutelnfoManager#registerBroker 。
+ */
 public class DefaultRequestProcessor implements NettyRequestProcessor {
     private static InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
@@ -334,6 +339,10 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * RocketMQ 路由发现是非实时的，当Topic 路由出现变化后，
+     * NameServer 不主动推送给客户端，而是由客户端定时拉取主题最新的路由。
+     */
     public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);

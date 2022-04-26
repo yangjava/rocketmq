@@ -860,7 +860,11 @@ public class BrokerController {
 
 
         this.registerBrokerAll(true, false, true);
-
+        /**
+         * 创建了一个线程池注册Broker，程序启动10秒后执行，
+         * 每隔30秒（默认30s，时间间隔在10秒到60秒之间，
+         * BrokerConfig.getRegisterNameServerPeriod()的默认值是30秒）执行一次。
+         */
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

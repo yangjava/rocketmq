@@ -111,12 +111,16 @@ public class BrokerOuterAPI {
         this.remotingClient.updateNameServerAddressList(lst);
     }
 
+    /**
+     该方法主要是遍历NameServer列表,Broker消息服务器依次向NameServer发送心跳包。
+     */
     public List<RegisterBrokerResult> registerBrokerAll(
         final String clusterName,
         final String brokerAddr,
         final String brokerName,
         final long brokerId,
         final String haServerAddr,
+        //TopicConfigSerializeWrapper比较复杂的数据结构，主要包含了broker上所有的topic信息
         final TopicConfigSerializeWrapper topicConfigWrapper,
         final List<String> filterServerList,
         final boolean oneway,

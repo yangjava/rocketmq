@@ -23,11 +23,34 @@ import java.util.List;
 import java.util.Random;
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * broker的数据:Master与Slave
+ * 的对应关系通过指定相同的BrokerName，
+ * 不同的BrokerId来定义，
+ * BrokerId为0 表示Master，非0表示Slave。
+ * brokerAddrTable 数据格式
+ * <li>
+ *     {
+ *     "broker-a":{
+ *         "brokerAddrs":{
+ *             "0":"172.16.62.75:10911"
+ *         },
+ *         "brokerName":"broker-a",
+ *         "cluster":"DefaultCluster"
+ *     }
+ * }
+ * </li>
+ *
+ */
 public class BrokerData implements Comparable<BrokerData> {
+    //多个Broker 组成一个集群,broker所属集群
     private String cluster;
+    // BrokerName 由相同的多台Broker组成Master-Slave 架构
     private String brokerName;
+    // 同一个brokerName下可以有一个Master和多个Slave,所以brokerAddrs是一个集合
+    // brokerld=0表示 Master，大于0表示从 Slave
     private HashMap<Long/* brokerId */, String/* broker address */> brokerAddrs;
-
+    // 用于查找broker地址
     private final Random random = new Random();
 
     public BrokerData() {

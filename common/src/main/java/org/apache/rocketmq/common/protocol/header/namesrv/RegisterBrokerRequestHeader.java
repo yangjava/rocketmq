@@ -24,15 +24,23 @@ import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
+/**
+ * 发送心跳包具体逻辑，首先封装请求包头（Header）
+ */
 public class RegisterBrokerRequestHeader implements CommandCustomHeader {
+    // broker名称。
     @CFNotNull
     private String brokerName;
+    // broker 地址。
     @CFNotNull
     private String brokerAddr;
+    // 集群名称。
     @CFNotNull
     private String clusterName;
+    //master 地址，初次请求时该值为空， slave 向Nameserver 注册后返回。
     @CFNotNull
     private String haServerAddr;
+    // brokerld.  (0:Master; 大于0: Slave)
     @CFNotNull
     private Long brokerId;
 

@@ -28,19 +28,28 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.protocol.body.KVTable;
 import org.apache.rocketmq.namesrv.NamesrvController;
+
+/**
+ * 加载namesrvController指定的kvConfig配置文件(常为xxx/kvConfig.json)到内存
+ * 读取或增加，删除kvConfig记录
+ * 将内存记录的配置,持久化到文件
+ * 打印所有kvConfig配置
+ *
+ */
 public class KVConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
     private final NamesrvController namesrvController;
-
+    // lock 是一个读写锁，用来控制并发
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    // configTable 就是在内存中记录住的kv配置,第一级key为NameSpace(暂时什么用还不清楚)
     private final HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable =
         new HashMap<String, HashMap<String, String>>();
-
+    // 传入一个NamesrvController，目的是为了后面获取到kvConfig的配置路径
     public KVConfigManager(NamesrvController namesrvController) {
         this.namesrvController = namesrvController;
     }
-
+    // 加载配置文件，读取到内存的configTable中
     public void load() {
         String content = null;
         try {
@@ -49,6 +58,8 @@ public class KVConfigManager {
             log.warn("Load KV config table exception", e);
         }
         if (content != null) {
+            // 根据kvConfigPath得到文件内容
+            //以json格式解析得到KVConfigSerializeWrapper对象
             KVConfigSerializeWrapper kvConfigSerializeWrapper =
                 KVConfigSerializeWrapper.fromJson(content, KVConfigSerializeWrapper.class);
             if (null != kvConfigSerializeWrapper) {
@@ -58,6 +69,11 @@ public class KVConfigManager {
         }
     }
 
+    /**
+     * 添加一条记录
+     * 放入configTable中，namespace对应一级key，key对应二级
+     * 然后将configTable进行持久化到文件
+     */
     public void putKVConfig(final String namespace, final String key, final String value) {
         try {
             this.lock.writeLock().lockInterruptibly();

@@ -45,8 +45,19 @@ import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.common.sysflag.TopicSysFlag;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
+/**
+ * RouteInfoManager是NameServer核心逻辑类,
+ * 其代码作用就是维护路由信息管理，提供路由注册/查询等核心功能，
+ * 由于路由信息都是保存在NameServer应用内存里，
+ * 其本质就是维护HashMap,而为了防止并发操作，
+ * 添加了ReentrantReadWriteLock读写锁
+ */
 public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
+    /**
+     * NameServer 与 Broker 空闲时长，默认2分钟，
+     * 在2分钟内 Nameserver 没有收到 Broker 的心跳包，则关闭该连接。
+     */
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;

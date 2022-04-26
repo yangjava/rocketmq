@@ -24,6 +24,11 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+/**
+ * Apache Commons CLI是开源的命令行解析工具，
+ * 它可以帮助开发者快速构建启动命令，
+ * 并且帮助你组织命令的参数、以及输出列表等。
+ */
 public class ServerUtil {
 
     public static Options buildCommandlineOptions(final Options options) {

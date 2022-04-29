@@ -140,17 +140,29 @@ public class PullAPIWrapper {
     }
 
     public PullResult pullKernelImpl(
+        // 从哪个消息消费队列拉取消息。
         final MessageQueue mq,
+        // 消息过滤表达式。
         final String subExpression,
+        // 消息表达式类型，分为TAG、SQL92.
         final String expressionType,
+        // 消息拉取偏移量。
         final long subVersion,
+        // 本次拉取最大消息条数，默认32条。
         final long offset,
+        // 拉取系统标记。
         final int maxNums,
+        //
         final int sysFlag,
+        // 当前MessageQueue的消费进度（内存中）。
         final long commitOffset,
+        // 消息拉取过程中允许Broker挂起的时间，默认15s。
         final long brokerSuspendMaxTimeMillis,
+        // 消息拉取超时时间。
         final long timeoutMillis,
+        // 消息拉取模式，默认为异步拉取
         final CommunicationMode communicationMode,
+        // 从Broker拉取到消息后的回调方法。
         final PullCallback pullCallback
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         FindBrokerResult findBrokerResult =

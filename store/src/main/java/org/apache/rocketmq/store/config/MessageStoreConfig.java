@@ -67,18 +67,26 @@ public class MessageStoreConfig {
     // 检测是否需要清除过期文件频率，默认10s
     private int cleanResourceInterval = 10000;
     // CommitLog removal interval
+    // 删除物理文件的间隔，因为在一次清除过程中，可能需要删除的文件不止一个，该值指定两次删除文件的间隔时间。
     private int deleteCommitLogFilesInterval = 100;
     // ConsumeQueue removal interval
     private int deleteConsumeQueueFilesInterval = 100;
+    // 在清除过期文件时，如果该文件被其他线程所占用（引用次数大于0，比如读取消息），
+    // 此时会阻止此次删除任务,同时在第一次试图删除该文件时记录当前时间戳，
+    // destroyMapedFileIntervalForcibly表示第一次拒绝删除之后能保留的最大时间，
+    // 在此时间内，同样可以被拒绝删除，同时会将引用减少1000个，超过该时间间隔后，
+    // 文件将被强制删除。
     private int destroyMapedFileIntervalForcibly = 1000 * 120;
     private int redeleteHangedFileInterval = 1000 * 120;
     // When to delete,default is at 4 am
     @ImportantField
+    // 设置一天的固定时间执行一次删除过期文件操作，默认为凌晨4点。
     private String deleteWhen = "04";
     // 表示commitlog 、consumequeue 文件所在磁盘分区的最大使用量，如果超过该值， 则需要立即清除过期文件。
     private int diskMaxUsedSpaceRatio = 75;
     // The number of hours to keep a log file before deleting it (in hours)
     @ImportantField
+    //文件保留时间，也就是从最后一次更新时间到现在，如果超过了该时间，则认为是过期文件，可以被删除。
     private int fileReservedTime = 72;
     // Flow control for ConsumeQueue
     private int putMsgIndexHightWater = 600000;
@@ -125,6 +133,20 @@ public class MessageStoreConfig {
     private int haSlaveFallbehindMax = 1024 * 1024 * 256;
     @ImportantField
     private BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
+    /**
+     * SYNC_FLUSH（同步刷盘）：
+     * 生产者发送的每一条消息都在保存到磁盘成功后才返回告诉生产者成功。
+     * 这种方式不会存在消息丢失的问题，但是有很大的磁盘IO开销，性能有一定影响。
+     *
+     * ASYNC_FLUSH（异步刷盘）：生产者发送的每一条消息并不是立即保存到磁盘，
+     * 而是暂时缓存起来，然后就返回生产者成功。
+     * 随后再异步的将缓存数据保存到磁盘，
+     * 有两种情况：1是定期将缓存中更新的数据进行刷盘，
+     * 2是当缓存中更新的数据条数达到某一设定值后进行刷盘。
+     * 这种方式会存在消息丢失（在还未来得及同步到磁盘的时候宕机），
+     * 但是性能很好。默认是这种模式。
+     *
+     */
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
     private int syncFlushTimeout = 1000 * 5;

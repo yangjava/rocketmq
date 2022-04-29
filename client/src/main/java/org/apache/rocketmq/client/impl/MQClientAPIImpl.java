@@ -360,7 +360,7 @@ public class MQClientAPIImpl {
         assert response != null;
         return this.processSendResponse(brokerName, msg, response);
     }
-
+    // 同步发送
     private void sendMessageAsync(
         final String addr,
         final String brokerName,

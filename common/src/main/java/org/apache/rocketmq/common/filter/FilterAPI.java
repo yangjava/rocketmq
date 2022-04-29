@@ -38,25 +38,30 @@ public class FilterAPI {
 
     public static SubscriptionData buildSubscriptionData(final String consumerGroup, String topic,
         String subString) throws Exception {
+        // 构造一个SubscriptionData实体，设置topic、表达式（tag）
         SubscriptionData subscriptionData = new SubscriptionData();
         subscriptionData.setTopic(topic);
         subscriptionData.setSubString(subString);
-
+        // 如果tag为空或者为"*"，统一设置为"*"，即订阅所有消息
         if (null == subString || subString.equals(SubscriptionData.SUB_ALL) || subString.length() == 0) {
             subscriptionData.setSubString(SubscriptionData.SUB_ALL);
         } else {
+            // tag不为空，则先按照‘|’进行分割
             String[] tags = subString.split("\\|\\|");
             if (tags.length > 0) {
+                // 遍历tag表达式数组
                 for (String tag : tags) {
                     if (tag.length() > 0) {
                         String trimString = tag.trim();
                         if (trimString.length() > 0) {
+                            // 将每个tag的值设置到tagSet中
                             subscriptionData.getTagsSet().add(trimString);
                             subscriptionData.getCodeSet().add(trimString.hashCode());
                         }
                     }
                 }
             } else {
+                // tag解析异常
                 throw new Exception("subString split error");
             }
         }

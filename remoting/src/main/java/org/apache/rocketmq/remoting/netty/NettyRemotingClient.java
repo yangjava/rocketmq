@@ -513,6 +513,17 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         return null;
     }
 
+    /**
+     * 消息异步发送是指消息生产者调用发送的API后，
+     * 无须阻塞等待消息服务器返回本次消息发送结果，
+     * 只需要提供一个回调函数，供消息发送客户端在收到响应结果回调。
+     * 异步方式相比同步方式，消息发送端的发送性能会显著提高，
+     * 但为了保护消息服务器的负载压力，RocketMQ 对消息发送的异步消息进行了井发控制，
+     * 通过参数clientAsyncSemaphoreValue来控制，默认为65535 。
+     * 异步消息发送虽然也可以通过
+     * DefaultMQProducer#retryTimesWhenSendAsyncFailed属性来控制消息重试次数，
+     * 但是重试的调用入口是在收到服务端响应包时进行的，如果出现网络异常、网络超时等将不会重试。
+     */
     @Override
     public void invokeAsync(String addr, RemotingCommand request, long timeoutMillis, InvokeCallback invokeCallback)
         throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException,
@@ -538,6 +549,14 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 单向发送是指消息生产者调用消息发送的API 后，
+     * 无须等待消息服务器返回本次消息发送结果，
+     * 并且无须提供回调函数，
+     * 表示消息发送压根就不关心本次消息发送是否成功，
+     * 其实现原理与异步消息发送相同，
+     * 只是消息发送客户端在收到响应结果后什么都不做而已，并且没有重试机制。
+     */
     @Override
     public void invokeOneway(String addr, RemotingCommand request, long timeoutMillis) throws InterruptedException,
         RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException {

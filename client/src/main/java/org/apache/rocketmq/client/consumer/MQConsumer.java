@@ -27,6 +27,17 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 /**
  * Message queue consumer interface
  */
+
+/**
+ * Consumer分为两种，PullConsumer和PushConsumer。
+ * 从名字就可以看出一种是拉取的方式，一种是主动Push的方式。
+ *
+ * 具体实现如下：
+ * PullConsumer，由用户主动调用pull方法来获取消息，没有则返回
+ * PushConsumer，在启动后，Consumer客户端会主动循环发送Pull请求到broker，
+ * 如果没有消息，broker会把请求放入等待队列，新消息到达后返回response。
+ * 所以本质上，两种方式都是通过客户端Pull来实现的。
+ */
 public interface MQConsumer extends MQAdmin {
     /**
      * If consuming failure,message will be send back to the brokers,and delay consuming some time

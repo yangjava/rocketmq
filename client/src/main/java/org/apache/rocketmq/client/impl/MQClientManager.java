@@ -43,7 +43,8 @@ public class MQClientManager {
     public MQClientInstance getAndCreateMQClientInstance(final ClientConfig clientConfig) {
         return getAndCreateMQClientInstance(clientConfig, null);
     }
-
+    // 一个JVM中所有消费者、生产者持有同一个MQClientInstance，
+    // 且MQClientInstance只会启动一次
     public MQClientInstance getAndCreateMQClientInstance(final ClientConfig clientConfig, RPCHook rpcHook) {
         String clientId = clientConfig.buildMQClientId();
         MQClientInstance instance = this.factoryTable.get(clientId);

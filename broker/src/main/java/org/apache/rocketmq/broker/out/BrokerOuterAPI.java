@@ -84,6 +84,11 @@ public class BrokerOuterAPI {
         this.brokerOuterExecutor.shutdown();
     }
 
+    /**
+     * 是否设置了nameserver地址
+     * 如果创建producer时，没有指定namesrv，
+     * 则需要执行fetchNameServerAddr，从namesrv上获取地址；
+     */
     public String fetchNameServerAddr() {
         try {
             String addrs = this.topAddressing.fetchNSAddr();

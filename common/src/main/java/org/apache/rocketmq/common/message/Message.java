@@ -22,22 +22,42 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ *消息系统所传输信息的物理载体，生产和消费数据的最小单位，每条消息必须属于一个主题。
+ *RocketMQ中每个消息拥有唯一的Message ID，且可以携带具有业务标识的Key。
+ *系统提供了通过Message ID和Key查询消息的功能。
+ */
 public class Message implements Serializable {
     private static final long serialVersionUID = 8445773977080406428L;
-
+    /**
+     * Topic表示一类消息的集合，每个主题包含若干条消息，每条消息只能属于一个主题，是RocketMQ进行消息订阅的基本单位。
+     */
     private String topic;
+    // 消息Flag(RocketMQ 不做处理），详情MessageSysFlag
     private int flag;
+    // 扩展属性
     private Map<String, String> properties;
+    // 消息体
     private byte[] body;
+    // 事务ID
     private String transactionId;
 
     public Message() {
     }
-
+    // 最简单的构造器，只包含topic+body
     public Message(String topic, byte[] body) {
         this(topic, "", "", 0, body, true);
     }
 
+    /**
+     * Message 扩展属性主要包含下面几个。
+     *
+     * * tag ：消息TAG ，用于消息过滤。
+     * * keys: Message 索引键， 多个用空格隔开， RocketMQ 可以根据这些key 快速检索到消息。
+     * * waitStoreMsgOK ：消息发送时是否等消息存储完成后再返回。
+     * * delayTimeLevel ： 消息延迟级别，用于定时消息或消息重试。
+     * 这些扩展属性存储在Message的properties 中。
+     */
     public Message(String topic, String tags, String keys, int flag, byte[] body, boolean waitStoreMsgOK) {
         this.topic = topic;
         this.flag = flag;

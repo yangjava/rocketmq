@@ -26,6 +26,13 @@ import org.apache.rocketmq.common.message.MessageQueue;
 /**
  * Cycle average Hashing queue algorithm
  */
+/**
+ * 平均轮询分配，推荐使用。
+ * 适用场景：如果不同Broker上的消息明显不同，那么适用此负载算法。
+ * 消息队列分配原则为在同一个消费组内一个消费者可以分配多个消息队列，
+ * 但同一个消息队列只会分配给一个消费者，故如果消费者个数大于消息队列数量，
+ * 则有些消费者无法消费消息。
+ */
 public class AllocateMessageQueueAveragelyByCircle implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 

@@ -27,9 +27,9 @@ public class TransactionMQProducer extends DefaultMQProducer {
     private int checkThreadPoolMinSize = 1;
     private int checkThreadPoolMaxSize = 1;
     private int checkRequestHoldMax = 2000;
-
+    // 事务状态回查异步执行线程池
     private ExecutorService executorService;
-
+    //事务监听器
     private TransactionListener transactionListener;
 
     public TransactionMQProducer() {
@@ -71,11 +71,13 @@ public class TransactionMQProducer extends DefaultMQProducer {
     @Deprecated
     public TransactionSendResult sendMessageInTransaction(final Message msg,
         final LocalTransactionExecuter tranExecuter, final Object arg) throws MQClientException {
+        // 如果事件监听器为空， 则直接返回异常，
         if (null == this.transactionCheckListener) {
             throw new MQClientException("localTransactionBranchCheckListener is null", null);
         }
 
         msg.setTopic(NamespaceUtil.wrapNamespace(this.getNamespace(), msg.getTopic()));
+        // 最终调用DefaultMQProducerlmpl的sendMessagelnTransaction方法。
         return this.defaultMQProducerImpl.sendMessageInTransaction(msg, tranExecuter, arg);
     }
 

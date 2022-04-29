@@ -18,7 +18,7 @@ package org.apache.rocketmq.client.producer;
 
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
-
+// 事务监听器，主要定义实现本地事务状态执行、本地事务状态回查两个接口。
 public interface TransactionListener {
     /**
      * When send transactional prepare(half) message succeed, this method will be invoked to execute local transaction.
@@ -27,6 +27,7 @@ public interface TransactionListener {
      * @param arg Custom business parameter
      * @return Transaction state
      */
+    // 执行本地事务。
     LocalTransactionState executeLocalTransaction(final Message msg, final Object arg);
 
     /**
@@ -36,5 +37,6 @@ public interface TransactionListener {
      * @param msg Check message
      * @return Transaction state
      */
+    // 事务消息状态回查。
     LocalTransactionState checkLocalTransaction(final MessageExt msg);
 }

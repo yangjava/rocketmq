@@ -473,6 +473,7 @@ public class MQClientInstance {
     public void sendHeartbeatToAllBrokerWithLock() {
         if (this.lockHeartbeat.tryLock()) {
             try {
+                // 发送心跳包
                 this.sendHeartbeatToAllBroker();
                 this.uploadFilterClassSource();
             } catch (final Exception e) {
@@ -533,6 +534,10 @@ public class MQClientInstance {
         return false;
     }
 
+    /**
+     * 同步发送心跳包给所有的broker，而该过程是通过RemotingClient统一实现的，
+     * 通过调用RemotingClient.invokeSync实现心跳包的发送，底层是通过Netty实现的。
+      */
     private void sendHeartbeatToAllBroker() {
         final HeartbeatData heartbeatData = this.prepareHeartbeatData();
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
@@ -614,6 +619,8 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
+                    // 如果isDefault 为true ，则使用默认主题去查询，
+                    // 如果查询到路由信息，则替换路由信息中读写队列个数为消息生产者默认的队列个数（defaultTopicQueueNums ）
                     if (isDefault && defaultMQProducer != null) {
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
                             1000 * 3);
@@ -625,8 +632,11 @@ public class MQClientInstance {
                             }
                         }
                     } else {
+                        // 如果isDefault 为false ，则使用参数topic 去查询；如果未查询到路由信息，则返回false ，表示路由信息未变化。
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
                     }
+                    // 如果路由信息找到，与本地缓存中的路由信息进行对比，
+                    // 判断路由信息是否发生了改变， 如果未发生变化，则直接返回false 。
                     if (topicRouteData != null) {
                         TopicRouteData old = this.topicRouteTable.get(topic);
                         boolean changed = topicRouteDataIsChange(old, topicRouteData);
@@ -644,6 +654,7 @@ public class MQClientInstance {
                             }
 
                             // Update Pub info
+                            // 更新MQClientlnstance Broker 地址缓存表。
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);

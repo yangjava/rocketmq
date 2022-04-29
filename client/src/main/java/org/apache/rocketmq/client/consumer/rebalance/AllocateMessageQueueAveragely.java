@@ -26,6 +26,8 @@ import org.apache.rocketmq.common.message.MessageQueue;
 /**
  * Average Hashing queue algorithm
  */
+// 平均分配，推荐使用。
+// 适用场景：如果发送方发送的消息在各个队列上分布均，则使用此负载算法。
 public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 

@@ -36,8 +36,8 @@ import org.apache.rocketmq.store.config.StorePathConfigHelper;
  */
 
 /**
- * ConsumeQueue 即为Commitlog 文件的索引文件，
- * 其构建机制是当消息到达Commitlog 文件后，
+ * ConsumeQueue 即为Commitlog文件的索引文件，
+ * 其构建机制是当消息到达Commitlog文件后，
  * 由专门的线程产生消息转发任务，从而构建消息消费队列文件与下文提到的索引文件。
  */
 public class ConsumeQueue {

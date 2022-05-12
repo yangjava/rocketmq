@@ -43,9 +43,9 @@ import org.apache.rocketmq.srvutil.FileWatchService;
  */
 public class NamesrvController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
-
+    // Namesrv配置信息,业务配置
     private final NamesrvConfig namesrvConfig;
-
+    // Namesrv配置信息
     private final NettyServerConfig nettyServerConfig;
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(

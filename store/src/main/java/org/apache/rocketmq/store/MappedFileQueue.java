@@ -32,7 +32,7 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 /**
  * MappedFileQueue是MappedFile 的管理容器，
  * MappedFileQueue 是对存储目录的封装，
- * 例如CommitLog 文件的存储路径{ROCKET_HOME}/store/commitlog/，
+ * 例如CommitLog文件的存储路径{ROCKET_HOME}/store/commitlog/，
  * 该目录下会存在多个内存映射文件MappedFile。
  */
 public class MappedFileQueue {

@@ -175,7 +175,7 @@ public class DefaultMessageStore implements MessageStore {
      * @throws IOException
      */
     /**
-     * 由于RocketMQ 存储首先将消息全量存储在Commitlog 文件中，
+     * 由于RocketMQ存储首先将消息全量存储在Commitlog文件中，
      * 然后异步生成转发任务更新ConsumeQueue 、Index 文件。
      * 如果消息成功存储到Commitlog 文件中，转发任务未成功执行，
      * 此时消息服务器Broker 由于某个原因看机，
@@ -196,9 +196,11 @@ public class DefaultMessageStore implements MessageStore {
             }
 
             // load Commit Log
+            // 加载Commit Log
             result = result && this.commitLog.load();
 
             // load Consume Queue
+            // 加载 Consume Queue
             result = result && this.loadConsumeQueue();
 
             if (result) {

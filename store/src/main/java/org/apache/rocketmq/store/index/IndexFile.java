@@ -28,9 +28,9 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.MappedFile;
 
 /**
- * 消息消费队列是RocketMQ 专门为消息订阅构建的索引文件，
+ * 消息消费队列是RocketMQ专门为消息订阅构建的索引文件，
  * 提高根据主题与消息队列检索消息的速度，
- * 另外RocketMQ 引入了Hash 索引机制为消息建立索引，
+ * 另外RocketMQ引入了Hash索引机制为消息建立索引，
  * HashMap 的设计包含两个基本点：
  * Hash 槽与Hash 冲突的链表结构。
  */
@@ -53,7 +53,7 @@ public class IndexFile {
      *
      * * beginTimestamp ： 该索引文件中包含消息的最小存储时间。
      * * end Times tamp ： 该索引文件中包含消息的最大存储时间。
-     * * beginPhyoffset ： 该索引文件中包含消息的最小物理偏移量（ c ommitlog 文件偏移量） 。
+     * * beginPhyoffset ： 该索引文件中包含消息的最小物理偏移量（ commitlog 文件偏移量） 。
      * * endPhyoffset ：该索引文件中包含消息的最大物理偏移量（ commitlog 文件偏移量） 。
      * * hashslotCount: hashslot 个数，并不是hash 槽使用的个数，在这里意义不大。
      * * indexCount: Index 条目列表当前已使用的个数， Index 条目在Index 条目列表中按顺序存储。
@@ -256,7 +256,7 @@ public class IndexFile {
         final long begin, final long end, boolean lock) {
         if (this.mappedFile.hold()) {
             /**
-             * 根据key 算出key 的hashcode ，
+             * 根据key 算出key的hashcode ，
              * 然后keyHash 对hash 槽数量取余定位到hashcode 对应的hash 槽下标，
              * hashcode 对应的hash 槽的物理地址为IndexHeader 头部（ 40字节）加上下标乘以每个hash 槽的大小（ 4字节） 。
              */

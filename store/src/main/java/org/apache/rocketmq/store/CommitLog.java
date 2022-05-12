@@ -44,12 +44,15 @@ import org.apache.rocketmq.store.schedule.ScheduleMessageService;
  */
 
 /**
- * Commitlog 文件存储目录为｛ ROCKET_HOME }/store/commitlog 目录，
+ * Commitlog 文件存储目录为{ROCKET_HOME}/store/commitlog 目录，
  * 每一个文件默认1G ，一个文件写满后再创建另外一个，以该文件中第一个偏移量为文件名，
- * 偏移量小于20 位用0 补齐。
+ * 偏移量小于20 位用0补齐。
  */
+// 逻辑存储层中，CommitLog 是 RocketMQ 中持久化文件的抽象逻辑对象，
+// 它将底层的存储结构与细节隐藏，可以当作是一个文件来写入。
 public class CommitLog {
     // Message's MAGIC CODE daa320a7
+    // 消息的魔数 daa320a7
     public final static int MESSAGE_MAGIC_CODE = -626843481;
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     // End of file empty MAGIC CODE cbd43194

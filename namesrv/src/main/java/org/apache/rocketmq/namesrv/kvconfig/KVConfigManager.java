@@ -102,7 +102,7 @@ public class KVConfigManager {
 
         this.persist();
     }
-
+    // 持久化
     public void persist() {
         try {
             this.lock.readLock().lockInterruptibly();

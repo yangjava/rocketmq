@@ -49,6 +49,19 @@ public class ExpressionType {
      * (a > 10 AND a < 100) OR (b IS NOT NULL AND b=TRUE)
      * </p>
      */
+    /**
+     * SelectorType.SQL92 根据SQL92表达式选择
+     * 关键字:
+     * AND, OR, NOT, BETWEEN, IN, TRUE, FALSE, IS, NULL
+     * 数据类型:
+     * Boolean, like: TRUE, FALSE
+     * String, like: ‘abc’
+     * Decimal, like: 123
+     * Float number, like: 3.1415
+     *
+     * 例子:
+     *    (a > 10 AND a < 100) OR (b IS NOT NULL AND b=TRUE)
+     */
     public static final String SQL92 = "SQL92";
 
     /**
@@ -56,6 +69,9 @@ public class ExpressionType {
      * "tag1 || tag2 || tag3", <br>
      * If null or * expression,meaning subscribe all.
      */
+    // 默认值 SelectorType.TAG 根据TAG选择
+    // 仅支持表达式格式如：“tag1 || tag2 || tag3”，
+    // 如果表达式为null或者“*”标识订阅所有消息
     public static final String TAG = "TAG";
 
     public static boolean isTagType(String type) {

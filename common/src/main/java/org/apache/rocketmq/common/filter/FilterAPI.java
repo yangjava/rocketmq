@@ -35,7 +35,7 @@ public class FilterAPI {
 
         return simple;
     }
-
+    // 构造一个SubscriptionData实体
     public static SubscriptionData buildSubscriptionData(final String consumerGroup, String topic,
         String subString) throws Exception {
         // 构造一个SubscriptionData实体，设置topic、表达式（tag）
@@ -68,9 +68,10 @@ public class FilterAPI {
 
         return subscriptionData;
     }
-
+    // 构建订阅实体数据
     public static SubscriptionData build(final String topic, final String subString,
         final String type) throws Exception {
+        // 如果是Tag模式
         if (ExpressionType.TAG.equals(type) || type == null) {
             return buildSubscriptionData(null, topic, subString);
         }

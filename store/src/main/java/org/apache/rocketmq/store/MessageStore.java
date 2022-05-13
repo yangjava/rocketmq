@@ -81,6 +81,13 @@ public interface MessageStore {
      * @param messageFilter Message filter used to screen desired messages.
      * @return Matched messages.
      */
+    /**
+     *  String group：消费组名称
+     * String topic：主题名称
+     * int queueId：队列ID
+     * long offset：待拉取偏移量
+     * MessageFilter messageFilter:消息过滤器。
+     */
     GetMessageResult getMessage(final String group, final String topic, final int queueId,
         final long offset, final int maxMsgNums, final MessageFilter messageFilter);
 

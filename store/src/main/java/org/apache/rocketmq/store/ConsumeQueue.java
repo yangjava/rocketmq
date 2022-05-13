@@ -39,6 +39,15 @@ import org.apache.rocketmq.store.config.StorePathConfigHelper;
  * ConsumeQueue 即为Commitlog文件的索引文件，
  * 其构建机制是当消息到达Commitlog文件后，
  * 由专门的线程产生消息转发任务，从而构建消息消费队列文件与下文提到的索引文件。
+ *
+ * 每个ConsumeQueue都有一个id，id 的值为0到TopicConfig配置的队列数量。
+ * 比如某个Topic的消费队列数量为4，那么四个ConsumeQueue的id就分别为0、1、2、3。
+ *
+ * ConsumeQueue是不负责存储消息的，只是负责记录它所属Topic的消息在CommitLog中的偏移量，
+ * 这样当消费者从Broker拉取消息的时候，就可以快速根据偏移量定位到消息。
+ *
+ * ConsumeQueue本身同样是利用MappedFileQueue进行记录偏移量信息的，
+ * 可见MappedFileQueue的设计多么美妙，它没有与消息进行耦合，而是设计成一个通用的存储功能。
  */
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);

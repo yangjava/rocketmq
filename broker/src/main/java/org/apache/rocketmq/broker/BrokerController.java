@@ -858,9 +858,14 @@ public class BrokerController {
         }
 
 
-
+        // 该方法就是用来进行向所有的NameSrv注册Broker自身信息的。
         this.registerBrokerAll(true, false, true);
         /**
+         * 调用了registerBrokerAll（）后，又开启了一个定时任务，
+         * 周期性的重复调用registerBrokerAll（），
+         * 这其实就是Broker在定期向NameSrv发送心跳包，
+         * NameSrv会每隔一段时间扫一遍broker列表，剔除长时间没发送心跳包的Broker。
+         *
          * 创建了一个线程池注册Broker，程序启动10秒后执行，
          * 每隔30秒（默认30s，时间间隔在10秒到60秒之间，
          * BrokerConfig.getRegisterNameServerPeriod()的默认值是30秒）执行一次。
@@ -930,6 +935,10 @@ public class BrokerController {
         }
     }
 
+    /**
+     *
+     * Broker向NameSrv注册了哪些信息，如Broker节点地址、Name、id、topic等信息。
+     */
     private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
         TopicConfigSerializeWrapper topicConfigWrapper) {
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(

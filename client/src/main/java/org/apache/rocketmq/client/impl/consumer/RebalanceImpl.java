@@ -43,16 +43,30 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 /**
  * Base class for rebalance algorithm
  */
+
+/**
+ * 队列负载均衡
+ * 是用来做消费者负载均衡的。当有消费者正常退出，异常关闭通道，或者新加入时，用来负载多个消费者与队列的消费关系。
+ * 针对不同的消费者实现类，存在三种不同的rebalance策略，分别的RebalancePullImpl、RebalanceLitePullImpl、RebalancePushImpl。继承RebalanceImpl。
+ * 我们的重点依旧是推模型的RebalancePushImpl实现。
+ */
 public abstract class RebalanceImpl {
     protected static final InternalLogger log = ClientLogger.getLog();
+    // 消息处理队列。
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<MessageQueue, ProcessQueue>(64);
+    // topic 的队列信息。
     protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable =
         new ConcurrentHashMap<String, Set<MessageQueue>>();
+    // 订阅信息。
     protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner =
         new ConcurrentHashMap<String, SubscriptionData>();
+    // 消费组名称。
     protected String consumerGroup;
+    // 消费模式。
     protected MessageModel messageModel;
+    // 队列分配算法。
     protected AllocateMessageQueueStrategy allocateMessageQueueStrategy;
+    // MQ 客户端实例。
     protected MQClientInstance mQClientFactory;
 
     public RebalanceImpl(String consumerGroup, MessageModel messageModel,
@@ -215,7 +229,7 @@ public abstract class RebalanceImpl {
             }
         }
     }
-
+    // 对本机所在的topic的队列进行负载均衡
     public void doRebalance(final boolean isOrder) {
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
         if (subTable != null) {

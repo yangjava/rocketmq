@@ -20,6 +20,7 @@ public enum ConsumeOrderlyStatus {
     /**
      * Success consumption
      */
+    // 成功
     SUCCESS,
     /**
      * Rollback consumption(only for binlog consumption)
@@ -34,5 +35,6 @@ public enum ConsumeOrderlyStatus {
     /**
      * Suspend current queue a moment
      */
+    // 挂起，延迟的意思
     SUSPEND_CURRENT_QUEUE_A_MOMENT;
 }

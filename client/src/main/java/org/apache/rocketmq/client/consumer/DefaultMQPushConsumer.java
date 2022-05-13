@@ -415,8 +415,10 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         this.namespace = namespace;
         this.allocateMessageQueueStrategy = allocateMessageQueueStrategy;
         defaultMQPushConsumerImpl = new DefaultMQPushConsumerImpl(this, rpcHook);
+        // 是否开启消息轨迹
         if (enableMsgTrace) {
             try {
+                // 是否自定义消息轨迹Topic
                 AsyncTraceDispatcher dispatcher = new AsyncTraceDispatcher(customizedTraceTopic, rpcHook);
                 dispatcher.setHostConsumer(this.getDefaultMQPushConsumerImpl());
                 traceDispatcher = dispatcher;
@@ -722,7 +724,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         setConsumerGroup(NamespaceUtil.wrapNamespace(this.getNamespace(), this.consumerGroup));
         // 启动消费客户端
         this.defaultMQPushConsumerImpl.start();
-        // trace处理逻辑
+        // 消息轨迹处理逻辑
         if (null != traceDispatcher) {
             try {
                 traceDispatcher.start(this.getNamesrvAddr(), this.getAccessChannel());

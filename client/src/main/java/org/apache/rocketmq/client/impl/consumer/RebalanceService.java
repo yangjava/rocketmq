@@ -32,6 +32,10 @@ public class RebalanceService extends ServiceThread {
         this.mqClientFactory = mqClientFactory;
     }
 
+    /**
+     * RebalanceService 线程的 run 方法比较简单，
+     * 就是直接调用 mqClientFactory.doRebalance。
+     */
     @Override
     public void run() {
         log.info(this.getServiceName() + " service started");

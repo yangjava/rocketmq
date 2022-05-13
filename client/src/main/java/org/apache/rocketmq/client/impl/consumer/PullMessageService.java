@@ -27,6 +27,13 @@ import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.utils.ThreadUtils;
 
+/**
+ *PullMessageService继承ServiceThread，其本质是一个线程，
+ * 在执行this.pullMessageService.start()时会执行其run方法，
+ * run方法的实现逻辑是：从pullRequestQueue中获取一个PullRequest，
+ * 如果pullRequestQueue为空，则线程将会阻塞，直到有任务被放入，
+ * 然后调用pullMessage方法进行消息拉取。
+ */
 public class PullMessageService extends ServiceThread {
     private final InternalLogger log = ClientLogger.getLog();
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
@@ -76,10 +83,20 @@ public class PullMessageService extends ServiceThread {
         return scheduledExecutorService;
     }
 
+    /**
+     * pullMessage(final PullRequest pullRequest)方法：
+     * 在这个方法中会根据consumerGroup来获取消费者的内部实现MQConsumerInner，
+     * 然后将其强制转换为DefaultMQPushConsumerImpl，
+     * 最后会调用DefaultMQPushConsumerImpl的pullMessage方法。
+     * 在这里面我们也不难发现PullMessageService只为PUSH模式服务。
+     *
+     */
     private void pullMessage(final PullRequest pullRequest) {
+        // 根据组名获取对应的消费者 一个mqClientInstance里一个consumerGroup只有一个消费者对应
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {
             DefaultMQPushConsumerImpl impl = (DefaultMQPushConsumerImpl) consumer;
+            //实际是根据组名获取对应的消费者来发起消息拉取
             impl.pullMessage(pullRequest);
         } else {
             log.warn("No matched consumer for the PullRequest {}, drop it", pullRequest);
@@ -92,7 +109,9 @@ public class PullMessageService extends ServiceThread {
 
         while (!this.isStopped()) {
             try {
+                // 从请求队列里获取一个请求
                 PullRequest pullRequest = this.pullRequestQueue.take();
+                // 拉取数据
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {
             } catch (Exception e) {

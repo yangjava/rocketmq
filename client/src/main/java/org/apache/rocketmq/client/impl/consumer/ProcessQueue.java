@@ -256,6 +256,15 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 首先申请 lockTreeMap 写锁，
+     * 获取 consumingMsgOrderlyTreeMap 中最大的消息偏移量 offset，
+     * consumingMsgOrderlyTreeMap 中存放的是本批消费的消息。
+     * 然后更新 msgCount、msgSize，并清除 consumingMsgOrderlyTreeMap。
+     * 并返回offset+1消息消费进度，从中可以看出 offset 表示消息消费队列的逻辑偏移量，
+     * 类似于数组下标，然后调用消息进度存储器存储消息消费进度，完成该批消息的消费。
+     *
+     */
     public long commit() {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
@@ -278,7 +287,12 @@ public class ProcessQueue {
 
         return -1;
     }
-
+    // 消息消费重试，
+    // 先将该批消息重新放入到 ProcessQueue 的 msgTreeMap，
+    // 然后清除 consumingMsgOrderlyTreeMap，
+    // 默认延迟1s再加入到消费队列中，并结束此次消息消费。
+    // 可以通过DefaultMQPushConsumer\#setSuspendCurrentQueueTimeMillis设置当前队列重试挂起时间。
+    // 如果执行消息重试，因为消息消费进度并未向前推进，故本次视为无效消费，将不更新消息消费进度。
     public void makeMessageToCosumeAgain(List<MessageExt> msgs) {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();
@@ -294,7 +308,7 @@ public class ProcessQueue {
             log.error("makeMessageToCosumeAgain exception", e);
         }
     }
-
+    // 顺序消息消费时，从ProceessQueue中取出的消息，会临时存储在ProceeQueue的consumingMsgOrderlyTreeMap属性中。
     public List<MessageExt> takeMessags(final int batchSize) {
         List<MessageExt> result = new ArrayList<MessageExt>(batchSize);
         final long now = System.currentTimeMillis();

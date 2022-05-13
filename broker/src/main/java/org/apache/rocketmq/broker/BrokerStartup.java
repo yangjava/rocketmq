@@ -48,16 +48,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.TLS_ENABLE;
 
+/**
+ * BrokerStartup 负责了Broker的启动，
+ * 其中的主方法main（）即为整个消息服务器的入口函数。
+ */
 public class BrokerStartup {
     public static Properties properties = null;
     public static CommandLine commandLine = null;
     public static String configFile = null;
     public static InternalLogger log;
 
+    /**
+     * 创建BrokerController，用来管理Broker节点。
+     * 启动BrokerController。
+     */
     public static void main(String[] args) {
         start(createBrokerController(args));
     }
 
+    /**
+     * BrokerController的start（）方法中，这个方法顾名思义，就是用来进行启动各种服务的。
+     */
     public static BrokerController start(BrokerController controller) {
         try {
 
@@ -87,6 +98,10 @@ public class BrokerStartup {
         }
     }
 
+    /**
+     * BrokerController的创建过程主要是分析配置信息，
+     * 如 NameSrv集群的地址表、Broker的角色信息（Master / Slave）等，并进行初始化。
+     */
     public static BrokerController createBrokerController(String[] args) {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
 

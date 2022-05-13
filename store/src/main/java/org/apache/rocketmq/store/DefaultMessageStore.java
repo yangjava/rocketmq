@@ -105,7 +105,8 @@ public class DefaultMessageStore implements MessageStore {
     private StoreCheckpoint storeCheckpoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
-    // CommitLog 文件转发请求。
+    // CommitLog 文件转发请求。DefaultMessageStore中存储了一个dispatcherList，
+    // 其中存放了几个CommitLogDispatcher对象，它们都是用来监听CommitLog中新消息存储的。
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
     private RandomAccessFile lockFile;
@@ -1143,8 +1144,11 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public ConsumeQueue findConsumeQueue(String topic, int queueId) {
+        // 先从consumeQueueTable中查询topic的ConsumeQueueMap
         ConcurrentMap<Integer, ConsumeQueue> map = consumeQueueTable.get(topic);
+        //如果未找到，
         if (null == map) {
+            // 便会为Topic创建一个新的ConcurrentMap<Integer/* queueId */, ConsumeQueue>，存放到表中。
             ConcurrentMap<Integer, ConsumeQueue> newMap = new ConcurrentHashMap<Integer, ConsumeQueue>(128);
             ConcurrentMap<Integer, ConsumeQueue> oldMap = consumeQueueTable.putIfAbsent(topic, newMap);
             if (oldMap != null) {
@@ -1153,9 +1157,11 @@ public class DefaultMessageStore implements MessageStore {
                 map = newMap;
             }
         }
-
+        // 从Topic的ConcurrentMap中，根据QueueId，查询ConsumeQueue
         ConsumeQueue logic = map.get(queueId);
+        // 如果未找到，
         if (null == logic) {
+            // 便也会创建一个新的ConsumeQueue，存放到Map中。ConsumeQueue便是此时被创建的。
             ConsumeQueue newLogic = new ConsumeQueue(
                 topic,
                 queueId,
@@ -1449,7 +1455,9 @@ public class DefaultMessageStore implements MessageStore {
      * 消息消费队列转发任务实现类为： CommitLogDispatcherBuildConsumeQueue ，内部最终将调用putMessagePositioninfo 方法。
      */
     public void putMessagePositionInfo(DispatchRequest dispatchRequest) {
+        // 调用findConsumeQueue（），根据消息的topic以及消息所属的ConsumeQueueId，找到对应的ConsumeQueue。
         ConsumeQueue cq = this.findConsumeQueue(dispatchRequest.getTopic(), dispatchRequest.getQueueId());
+        // 当找到消息对应的ConsumeQueue后，便调用ConsumeQueue的putMessagePositionInfoWrapper（）方法，更新ConsumeQueue。
         cq.putMessagePositionInfoWrapper(dispatchRequest);
     }
 
@@ -1502,6 +1510,9 @@ public class DefaultMessageStore implements MessageStore {
         }, 6, TimeUnit.SECONDS);
     }
 
+    /**
+     * 专门用来通知ConsumeQueue的Dispatcher是CommitLogDispatcherBuildConsumeQueue
+     */
     class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
 
         @Override
@@ -1809,6 +1820,9 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * ReputMessageService就是用来更新ConsumeQueue中消息偏移的。
+     */
     class ReputMessageService extends ServiceThread {
 
         private volatile long reputFromOffset = 0;
@@ -1847,6 +1861,7 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         private void doReput() {
+
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
                     this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
@@ -1858,8 +1873,10 @@ public class DefaultMessageStore implements MessageStore {
                     && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
                     break;
                 }
-
+                // 获取CommitLog中存储的新消息。reputFromOffset记录了本次需要拉取的消息在CommitLog中的偏移。
+                // 这里将reputFromOffset传递给CommitLog，获取CommitLog在reputFromOffset处存储的消息。
                 SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
+                // 如果第一步获取的消息不为空，则表明有新消息被存储到CommitLog中，此时便会通知ConsumeQueue更新消息偏移。
                 if (result != null) {
                     try {
                         this.reputFromOffset = result.getStartOffset();
@@ -1871,6 +1888,7 @@ public class DefaultMessageStore implements MessageStore {
 
                             if (dispatchRequest.isSuccess()) {
                                 if (size > 0) {
+                                    // 调用 DefaultMessageStore.this.doDispatch(dispatchRequest) 来通知ConsumeQueue。
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
@@ -1922,6 +1940,8 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         /**
+         * ReputMessageService本身是一个线程，
+         * 它启动后便会在循环中不断调用doReput（）方法，用来通知ConsumeQueue进行更新。
          * ReputMessageService 线程每执行一次任务推送休息1毫秒就继续尝试推送消息到消息消费队列和索引文件，
          * 消息消费转发的核心实现在doReput 方法中实现。
          */

@@ -116,7 +116,7 @@ public class MixAll {
     public static boolean isSystemTopic(final String topic) {
         return topic.startsWith(SYSTEM_TOPIC_PREFIX);
     }
-
+    // 死信队列 %DLQ%+consumerGroup
     public static String getDLQTopic(final String consumerGroup) {
         return DLQ_GROUP_TOPIC_PREFIX + consumerGroup;
     }

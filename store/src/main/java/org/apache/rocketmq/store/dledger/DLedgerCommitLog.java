@@ -53,6 +53,32 @@ import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 /**
  * Store all metadata downtime for recovery, data protection reliability
  */
+
+/**
+ * 在 RocketMQ 4.5 版本之前，RocketMQ 只有 Master/Slave 一种部署方式，一组 broker 中有一个 Master ，有零到多个
+ * Slave，Slave 通过同步复制或异步复制的方式去同步 Master 数据。Master/Slave 部署模式，提供了一定的高可用性。
+ * 但这样的部署模式，有一定缺陷。比如故障转移方面，如果主节点挂了，还需要人为手动进行重启或者切换，无法自动将一个从节点转换为主节点。因此，我们希望能有一个新的多副本架构，去解决这个问题。
+ *
+ * 新的多副本架构首先需要解决自动故障转移的问题，本质上来说是自动选主的问题。这个问题的解决方案基本可以分为两种：
+ *
+ * 利用第三方协调服务集群完成选主，
+ *
+ * 比如 zookeeper 或者 etcd。
+ * 这种方案会引入了重量级外部组件，加重部署，运维和故障诊断成本，
+ * 比如在维护 RocketMQ 集群还需要维护 zookeeper 集群，
+ * 并且 zookeeper 集群故障会影响到 RocketMQ 集群。
+ *
+ * 利用 raft 协议来完成一个自动选主，
+ * raft 协议相比前者的优点是不需要引入外部组件，
+ * 自动选主逻辑集成到各个节点的进程中，节点之间通过通信就可以完成选主。
+ *
+ * 因此最后选择用 raft 协议来解决这个问题，
+ * 而 DLedger 就是一个基于 raft 协议的 commitlog 存储库，
+ * 也是 RocketMQ 实现新的高可用多副本架构的关键。
+ *
+ *
+ *
+ */
 public class DLedgerCommitLog extends CommitLog {
     private final DLedgerServer dLedgerServer;
     private final DLedgerConfig dLedgerConfig;

@@ -763,6 +763,7 @@ public class MQClientInstance {
     private void uploadFilterClassToAllFilterServer(final String consumerGroup, final String fullClassName,
         final String topic,
         final String filterClassSource) throws UnsupportedEncodingException {
+        // 将代码转换成字节数值。
         byte[] classBody = null;
         int classCRC = 0;
         try {
@@ -773,7 +774,8 @@ public class MQClientInstance {
                 fullClassName,
                 RemotingHelper.exceptionSimpleDesc(e1));
         }
-
+        // 根据主题找到路由信息，如果路由信息中的filterServerTable不为空，
+        // 则通过网络将classname,class内容注册到FilterServer中。
         TopicRouteData topicRouteData = this.topicRouteTable.get(topic);
         if (topicRouteData != null
             && topicRouteData.getFilterServerTable() != null && !topicRouteData.getFilterServerTable().isEmpty()) {
@@ -783,6 +785,8 @@ public class MQClientInstance {
                 List<String> value = next.getValue();
                 for (final String fsAddr : value) {
                     try {
+                        // 向路由信息中包含的 FilterServer 服务器注册过滤类，
+                        // 该方法主要是构建RequestCode.REGISTER_MESSAGE_FILTER_CLASS 消息，发往FilterServer。
                         this.mQClientAPIImpl.registerMessageFilterClass(fsAddr, consumerGroup, topic, fullClassName, classCRC, classBody,
                             5000);
 

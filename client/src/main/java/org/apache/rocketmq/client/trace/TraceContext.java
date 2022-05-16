@@ -24,15 +24,28 @@ import java.util.List;
  * The context of Trace
  */
 public class TraceContext implements Comparable<TraceContext> {
-
+    // 跟踪类型，
+    // 可选值：
+    // Pub(消息发送)
+    // 、SubBefore(消息拉取到客户端，执行业务定义的消费逻辑之前)
+    // 、SubAfter(消费后)。
     private TraceType traceType;
+    // 当前时间戳。
     private long timeStamp = System.currentTimeMillis();
+    // broker所在的区域ID，取自BrokerConfig#regionId。
     private String regionId = "";
     private String regionName = "";
+    // 组名称，
+    // traceType为Pub时为生产者组的名称；
+    // 如果traceType为subBefore或subAfter时为消费组名称。
     private String groupName = "";
+    // 耗时。
     private int costTime = 0;
+    // 是发送成功。
     private boolean isSuccess = true;
+    // traceType为subBefore、subAfter时使用，消费端的请求Id。
     private String requestId = MessageClientIDSetter.createUniqID();
+    // 消费状态码，可选值：SUCCESS,TIME_OUT,EXCEPTION,RETURNNULL,FAILED。
     private int contextCode = 0;
     private List<TraceBean> traceBeans;
 

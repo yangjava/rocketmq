@@ -30,6 +30,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 如果消息消费失败需要重试，RocketMQ 的做法是将消息重新发送到 Broker 服务器，
+ * 此时全局 msgId 是不会发送变化的，但该消息的 offsetMsgId 会发送变化，
+ * 因为其存储在服务器中的位置发生了变化。
+ */
 public class MessageDecoder {
     public final static int MSG_ID_LENGTH = 8 + 8;
 
@@ -57,6 +62,20 @@ public class MessageDecoder {
         + 4 // 13 RECONSUMETIMES
         + 8; // 14 Prepared Transaction Offset
 
+    // 在消息 Broker 服务端将消息追加到内存后会返回其物理偏移量，
+    // 即在 commitlog 文件中的文件，然后会再次生成一个id，
+    // 代码中虽然也叫 msgId，其实这里就是我们常说的 offsetMsgId，即记录了消息的物理偏移量
+
+    /**
+     *
+     *  ByteBuffer input
+     * 用来存放 offsetMsgId 的字节缓存区( NIO 相关的基础知识)
+     * ByteBuffer addr
+     * 当前 Broker 服务器的 IP 地址与端口号，即通过解析 offsetMsgId 从而得到消息服务器的地址信息。
+     * long offset
+     * 消息的物理偏移量。
+     * 即构成 offsetMsgId 的组成部分：Broker 服务器的 IP 与端口号、消息的物理偏移量。
+     */
     public static String createMessageId(final ByteBuffer input, final ByteBuffer addr, final long offset) {
         input.flip();
         input.limit(MessageDecoder.MSG_ID_LENGTH);

@@ -74,9 +74,19 @@ public class ConsumerFilterManager extends ConfigManager {
      *
      * @return maybe null
      */
+    // 该方法构建 ConsumerFilterData 数据。不包含 BoomFilter 的构建。
+
+    /**
+     * topic : 主题。
+     * consumerGroup ：消费组。
+     * expression ：表达式。
+     * type ：消息过滤类型,TAG或SQL92。
+     * clientVersion : 客户端版本号。
+     */
     public static ConsumerFilterData build(final String topic, final String consumerGroup,
         final String expression, final String type,
         final long clientVersion) {
+        // 如果是 TAG 模式，则返回 null,表明 ConsumerFilterData 不针对TAG模式。
         if (ExpressionType.isTagType(type)) {
             return null;
         }
@@ -90,6 +100,10 @@ public class ConsumerFilterManager extends ConfigManager {
         consumerFilterData.setExpressionType(type);
         consumerFilterData.setClientVersion(clientVersion);
         try {
+            // 编译表达式，
+            // 例如 a >= 1 and b <=10 这些语法，
+            // 如果大家有兴趣，可以重点看一下 SqlFilter-->SelectorParser。
+            // 这里会返回一个BooleanExpression的实现类，用于判断是否匹配。
             consumerFilterData.setCompiledExpression(
                 FilterFactory.INSTANCE.get(type).compile(expression)
             );

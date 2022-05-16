@@ -23,6 +23,12 @@ import java.io.IOException;
 /**
  * Interface of asynchronous transfer data
  */
+
+/**
+ * TraceDispatcher 消息轨迹转发处理器，
+ * 其默认实现类AsyncTraceDispatcher，
+ * 异步实现消息轨迹数据的发送。
+ */
 public interface TraceDispatcher {
 
     /**

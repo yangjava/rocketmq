@@ -44,6 +44,12 @@ import org.apache.rocketmq.store.PutMessageStatus;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
+/**
+ * 定时消息是指消息发送到Broker后，不会立即被消费者消费，
+ * 而是要等到特定的时间后才能被消费，Rocket并不支持任意的时间精度，
+ * 因为如果要支持任意时间精度到的定时调度，则不可避免地需要在Broker层做消息排序，
+ * 在加上持久化方面的考量，将不可避免地带来巨大的性能消耗，所以RocketMQ只支持特定级别的延迟消息。
+ */
 public class ScheduleMessageService extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 

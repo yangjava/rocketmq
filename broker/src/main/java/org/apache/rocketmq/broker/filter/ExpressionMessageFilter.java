@@ -113,7 +113,7 @@ public class ExpressionMessageFilter implements MessageFilter {
 
         return true;
     }
-
+    // 因为 SQL92 是根据消息体中的属性进行过滤，故需要访问CommitLog 文件，也就是消息体。
     @Override
     public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
         if (subscriptionData == null) {
@@ -136,11 +136,11 @@ public class ExpressionMessageFilter implements MessageFilter {
             || realFilterData.getCompiledExpression() == null) {
             return true;
         }
-
+        // 从消息体中解码出属性。
         if (tempProperties == null && msgBuffer != null) {
             tempProperties = MessageDecoder.decodeProperties(msgBuffer);
         }
-
+        // 然后对表达式进行匹配，上下文环境为消息体中的属性，如果匹配，则返回true,否则返回false。
         Object ret = null;
         try {
             MessageEvaluationContext context = new MessageEvaluationContext(tempProperties);

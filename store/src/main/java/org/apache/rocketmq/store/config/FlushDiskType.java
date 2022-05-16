@@ -19,6 +19,14 @@ package org.apache.rocketmq.store.config;
 /**
  * 刷盘方式
  *
+ * flushDiskType也分两种：
+ *
+ * SYNC_FLUSH：
+ * 同步刷盘模式，当消息来了之后，尽可能快地从内存持久化到磁盘上，保证尽量不丢消息，性能会有损耗
+ *
+ * ASYNC_FLUSH：
+ * 异步刷盘模式，消息到了内存之后，不急于马上落盘，极端情况可能会丢消息，但是性能较好。
+ *
  */
 public enum FlushDiskType {
     // 同步刷盘

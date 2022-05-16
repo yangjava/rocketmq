@@ -1290,10 +1290,12 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * 分别执行清除消息存储文件（ Commitlog 文件）与消息消费队列文件（ ConsumeQueue文件） 。
+     * 分别执行清除消息存储文件(Commitlog文件)与消息消费队列文件(ConsumeQueue文件)。
      */
     private void cleanFilesPeriodically() {
+        // 清除消息存储文件(Commitlog文件)
         this.cleanCommitLogService.run();
+        // 清除消息消费队列文件(ConsumeQueue文件)
         this.cleanConsumeQueueService.run();
     }
 
@@ -1561,8 +1563,9 @@ public class DefaultMessageStore implements MessageStore {
 
         public void run() {
             try {
+                // 尝试删除过期文件
                 this.deleteExpiredFiles();
-
+                // 重试删除被hange(由于被其他线程引用在第一阶段未删除的文件)，在这里再重试一次
                 this.redeleteHangedFile();
             } catch (Throwable e) {
                 DefaultMessageStore.log.warn(this.getServiceName() + " service has exception. ", e);
@@ -1585,7 +1588,7 @@ public class DefaultMessageStore implements MessageStore {
             boolean spacefull = this.isSpaceToDelete();
             // 预留，手工触发，可以通过调用excuteDeleteFilesManualy 方法手工触发过期文件删除，目前RocketMQ 暂未封装手工触发文件删除的命令。
             boolean manualDelete = this.manualDeleteFileSeveralTimes > 0;
-
+            // 三种情况任意满足之一的情况下将继续执行删除文件操作
             if (timeup || spacefull || manualDelete) {
 
                 if (manualDelete)

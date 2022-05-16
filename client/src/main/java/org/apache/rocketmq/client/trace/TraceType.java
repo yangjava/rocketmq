@@ -17,7 +17,10 @@
 package org.apache.rocketmq.client.trace;
 
 public enum TraceType {
+    // Pub(消息发送)
     Pub,
+    // SubBefore(消息拉取到客户端，执行业务定义的消费逻辑之前)
     SubBefore,
+    // SubAfter(消费后)。
     SubAfter,
 }

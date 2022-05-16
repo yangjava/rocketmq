@@ -65,6 +65,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Wrapping internal implementations for virtually all methods presented in this class.
      */
+    // 装饰者模式，用于包装消息的发送实现
     protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
     // 生产者所属组，消息服务器在回查事务状态时会随机选择该组中任何一个生产者发起事务回查请求。
     /**
@@ -136,11 +137,13 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Interface of asynchronous transfer data
      */
+    // TraceDispatcher，用于客户端消息轨迹数据转发到 Broker，其默认实现类：AsyncTraceDispatcher。
     private TraceDispatcher traceDispatcher = null;
 
     /**
      * Default constructor.
      */
+    // 默认构造器
     public DefaultMQProducer() {
         this(null, MixAll.DEFAULT_PRODUCER_GROUP, null);
     }
@@ -177,8 +180,12 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.producerGroup = producerGroup;
         defaultMQProducerImpl = new DefaultMQProducerImpl(this, rpcHook);
         //if client open the message trace feature
+        // 是否开启消息轨迹
+        // boolean enableMsgTrace 是否开启跟踪消息轨迹，默认为false。
+        // String customizedTraceTopic 如果开启消息轨迹跟踪，用来存储消息轨迹数据所属的主题名称，默认为：RMQ_SYS_TRACE_TOPIC。
         if (enableMsgTrace) {
             try {
+                // SendMessageHook 消息发送钩子函数，用于在消息发送之前、发送之后执行一定的业务逻辑，是记录消息轨迹的最佳扩展点。
                 AsyncTraceDispatcher dispatcher = new AsyncTraceDispatcher(customizedTraceTopic, rpcHook);
                 dispatcher.setHostProducer(this.defaultMQProducerImpl);
                 traceDispatcher = dispatcher;

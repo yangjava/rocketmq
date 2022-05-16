@@ -22,6 +22,11 @@ import java.nio.ByteBuffer;
 import org.apache.rocketmq.common.TopicFilterType;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 
+/**
+ * 消息的数据结构在Producer端是Message，
+ * 因为到了Broker，Broker会给消息加字段，就成了MessageExt，
+ * MessageExt继承自Message
+ */
 public class MessageExt extends Message {
     private static final long serialVersionUID = 5720810158625748049L;
 

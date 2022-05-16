@@ -252,6 +252,11 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         }
     }
 
+    /**
+     * PushConsumer为了保证消息肯定消费成功，只有使用方明确表示消费成功，
+     * RocketMQ才会认为消息消费成功。
+     * 中途断电，抛出异常等都不会认为成功——即都会重新投递。
+     */
     public void processConsumeResult(
         final ConsumeConcurrentlyStatus status,
         final ConsumeConcurrentlyContext context,
@@ -263,15 +268,20 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             return;
 
         switch (status) {
+            // 消费成功
             case CONSUME_SUCCESS:
+                // 对于批量消费，如果用户设置的ackIndex大于批量消费消息数，那么ackIndex = 消费数 - 1
                 if (ackIndex >= consumeRequest.getMsgs().size()) {
                     ackIndex = consumeRequest.getMsgs().size() - 1;
                 }
                 int ok = ackIndex + 1;
                 int failed = consumeRequest.getMsgs().size() - ok;
+                // 统计消费成功的消息数量
                 this.getConsumerStatsManager().incConsumeOKTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), ok);
+                // 统计消费失败的消息数量
                 this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), failed);
                 break;
+            // 消费失败，ackIndex = -1
             case RECONSUME_LATER:
                 ackIndex = -1;
                 this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(),
@@ -282,6 +292,8 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         }
 
         switch (this.defaultMQPushConsumer.getMessageModel()) {
+            // 如果是广播模式，直接丢弃失败消息，需要在文档中告知用户
+            // 这样做的原因：广播模式对于失败重试代价过高，对整个集群性能会有较大影响，失败重试功能交由应用处理
             case BROADCASTING:
                 for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
                     MessageExt msg = consumeRequest.getMsgs().get(i);
@@ -290,6 +302,17 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 break;
             case CLUSTERING:
                 List<MessageExt> msgBackFailed = new ArrayList<MessageExt>(consumeRequest.getMsgs().size());
+                // 这里有两种情况：
+                // 1.在回调方法中返回了RECONSUME_LATER，表示此次消费失败，那么无论是单条消费还是批量消费都会对所有的消息进行回退
+                // 2.在回调方法中返回了CONSUME_SUCCESS，表示此次消费成功，那么对于单条消费来说是不会对这条消息进行回退的，
+                //   但是如果是批量消费，并且指定了ackIndex，就算是返回了CONSUME_SUCCESS，也会对索引的消息进行回退
+
+                // 举个例子，如果用户设置了批量消费 3 条数据，回调方法的返回值是CONSUME_SUCCESS，ackIndex = 0
+                // 第一次遍历 i = 0 + 1 = 1, 1 < 3?，条件成立，所以索引为0的消息就需要进行消息回退，i++
+                // 第二次遍历 i = 1 + 1 = 2, 2 < 3?,条件成立，所以索引为1的消息就需要进行消息回退，i++
+                // 第三次遍历 i = 2 + 1 = 3, 3 < 3?,条件不成立，所以索引为2的消息不需要进行消息回退，跳出循环
+                // 也就是说对于批量消费，ackIndex的意思就是该索引本身及（从0开始）之后的消息都需要进行消息回退
+
                 for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
                     MessageExt msg = consumeRequest.getMsgs().get(i);
                     boolean result = this.sendMessageBack(msg, context);
@@ -300,15 +323,16 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 }
 
                 if (!msgBackFailed.isEmpty()) {
+                    // 发回失败的消息仍然要保留
                     consumeRequest.getMsgs().removeAll(msgBackFailed);
-
+                    // 此过程处理失败的消息，需要在Client中做定时消费，直到成功
                     this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
                 }
                 break;
             default:
                 break;
         }
-
+        // 删除消息树中的已消费的消息节点，并返回消息树中最小的节点,更新最小的节点为当前进度！！
         long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
         if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
             this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);

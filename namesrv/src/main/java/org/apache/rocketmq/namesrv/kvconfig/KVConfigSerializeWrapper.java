@@ -18,8 +18,9 @@ package org.apache.rocketmq.namesrv.kvconfig;
 
 import java.util.HashMap;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
-
+// kvConfig序列化包装器，内部只有一个配置表
 public class KVConfigSerializeWrapper extends RemotingSerializable {
+    // 可以看到这个KVConfig其实是基于Namesapce的，配置项的分类是基于namespace的。
     private HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable;
 
     public HashMap<String, HashMap<String, String>> getConfigTable() {

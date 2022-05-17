@@ -44,10 +44,12 @@ public class NettyServerConfig implements Cloneable {
     private int serverSelectorThreads = 3;
     /**
      * send oneway 消息请求并发度（ Broker 端参数）
+     * 单向信号量256
      */
     private int serverOnewaySemaphoreValue = 256;
     /**
      * 异步消息发送最大并发度（ Broker 端参数） 。
+     * 异步信号量64
      */
     private int serverAsyncSemaphoreValue = 64;
     /**

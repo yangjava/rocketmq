@@ -19,6 +19,10 @@ package org.apache.rocketmq.logging;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * InternalLoggerFactory是一个抽象类，
+ * 有两个实现类：InnerLoggerFactory和Slf4jLoggerFactory
+ */
 public abstract class InternalLoggerFactory {
 
     public static final String LOGGER_SLF4J = "slf4j";
@@ -28,7 +32,8 @@ public abstract class InternalLoggerFactory {
     public static final String DEFAULT_LOGGER = LOGGER_SLF4J;
 
     private static String loggerType = null;
-
+    // ConcurrentHashMap类型的缓存：loggerFactoryCache
+    // key是唯一标识，value是InternalLoggerFactory，也就是这个类本身。
     private static ConcurrentHashMap<String, InternalLoggerFactory> loggerFactoryCache = new ConcurrentHashMap<String, InternalLoggerFactory>();
 
     public static InternalLogger getLogger(Class clazz) {
@@ -38,7 +43,11 @@ public abstract class InternalLoggerFactory {
     public static InternalLogger getLogger(String name) {
         return getLoggerFactory().getLoggerInstance(name);
     }
-
+    // LoggerFactory的获取，
+    // 优先返回用户设置的loggerType，
+    // 其次是默认的（slf4j），
+    // 最后是（inner），
+    // 如果全部初始化失败则抛出异常。
     private static InternalLoggerFactory getLoggerFactory() {
         InternalLoggerFactory internalLoggerFactory = null;
         if (loggerType != null) {
@@ -72,7 +81,7 @@ public abstract class InternalLoggerFactory {
             //ignore
         }
     }
-
+    // 把当前日志工厂塞入缓存
     protected void doRegister() {
         String loggerType = getLoggerType();
         if (loggerFactoryCache.get(loggerType) != null) {
@@ -84,6 +93,6 @@ public abstract class InternalLoggerFactory {
     protected abstract void shutdown();
 
     protected abstract InternalLogger getLoggerInstance(String name);
-
+    // 返回当前日志工厂的类型（slf4j或者inner）
     protected abstract String getLoggerType();
 }

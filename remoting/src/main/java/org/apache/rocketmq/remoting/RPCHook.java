@@ -19,6 +19,10 @@ package org.apache.rocketmq.remoting;
 
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * 接口内部有两个方法，分别是请求前执行和响应后执行。
+ * 接口的实现类的实例化对象作为一个对象存入rpcHooks集合中，后期会调用并统一执行。
+ */
 public interface RPCHook {
     void doBeforeRequest(final String remoteAddr, final RemotingCommand request);
 

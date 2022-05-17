@@ -37,6 +37,7 @@ import org.apache.rocketmq.namesrv.NamesrvController;
  *
  */
 public class KVConfigManager {
+    // 代码入口首先是日志工具
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
     private final NamesrvController namesrvController;

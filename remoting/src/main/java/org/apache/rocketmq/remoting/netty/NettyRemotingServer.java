@@ -64,6 +64,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 public class NettyRemotingServer extends NettyRemotingAbstract implements RemotingServer {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
+    // netty中的ServerBootstrap，EventLoopGroup，EventLoopGroup，ChannelEventListener，DefaultEventExecutorGroup
     private final ServerBootstrap serverBootstrap;
     private final EventLoopGroup eventLoopGroupSelector;
     private final EventLoopGroup eventLoopGroupBoss;
@@ -71,7 +72,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
     private final ExecutorService publicExecutor;
     private final ChannelEventListener channelEventListener;
-
+    // 声明为守护进程的Timer
     private final Timer timer = new Timer("ServerHouseKeepingService", true);
     private DefaultEventExecutorGroup defaultEventExecutorGroup;
 
@@ -278,7 +279,8 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             rpcHooks.add(rpcHook);
         }
     }
-
+    // 注册处理器，其实就是把请求码，处理器和执行器注册到NettyRemotingServer的processorTable中。
+    // 执行器如果为空的话，会选择默认的publicExecutor
     @Override
     public void registerProcessor(int requestCode, NettyRequestProcessor processor, ExecutorService executor) {
         ExecutorService executorThis = executor;

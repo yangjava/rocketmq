@@ -130,7 +130,7 @@ public class AllocateMappedFileService extends ServiceThread {
             }
         }
     }
-
+    // 只要服务处于非停止状态，就一直循环做MMAP内存映射文件操作；大家一起默念：零拷贝、零拷贝、零拷贝。
     public void run() {
         log.info(this.getServiceName() + " service started");
 

@@ -170,19 +170,21 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     public void start(final boolean startFactory) throws MQClientException {
+        //注意：此处的serviceState默认为CREATE_JUST 是DefaultMQProducer的成员变量
         switch (this.serviceState) {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
-
+                //合法性校验
                 this.checkConfig();
                 // 检查productGroup 是否符合要求；并改变生产者的instanceName 为进程ID 。
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
-                // 创建MQClientInstance 实例。
+                // 创建MQClientInstance 实例。获取MQClientInstance,作为生产者与NameServer,Broker沟通的通道
                 /**
                  * 整个NM 实例中只存在一个MQClientManager 实例，维护一个MQClientInstance
                  * 缓存表ConcurrentMap同一个clientld 只会创建一个MQClientinstance。
+                 *  clientId的组成ClientIP@InstanceName，在同一个客户端连接多个集群时需要修改ClientIP或者InstanceName以确保clientId唯一
                  */
                 this.mQClientFactory = MQClientManager.getInstance().getAndCreateMQClientInstance(this.defaultMQProducer, rpcHook);
                 /**
@@ -190,16 +192,18 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                  * 将当前生产者加入到MQClientlnstance 管理中，
                  * 方便后续调用网络请求、进行心跳检测等。
                  * 启动MQClientlnstance ，
-                 * 如果MQC!ientlnstance 已经启动，则本次启动不会真正执行。
+                 * 如果MQClientlnstance 已经启动，则本次启动不会真正执行。
                  */
+                // 将当前生产者加入到MQClientInstance管理中，方便后续调用网络请求、进行心跳检测
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
+                //一个ProductGroup只允许注册一次
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
                     throw new MQClientException("The producer group[" + this.defaultMQProducer.getProducerGroup()
                         + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
                         null);
                 }
-
+                // 设置默认主题TBW102的路由信息
                 this.topicPublishInfoTable.put(this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
 
                 if (startFactory) {
@@ -220,7 +224,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             default:
                 break;
         }
-
+        //向各个broker发送心跳包
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
     }
 
@@ -553,6 +557,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             Exception exception = null;
             SendResult sendResult = null;
             // 重复发送次数
+            //同步发送默认3(1+2)次 其他1次
+            //异步发送通过retryTimesWhenSendAsyncFailed来控制，在发送结果返回后再处理
             int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
             String[] brokersSent = new String[timesTotal];
@@ -682,13 +688,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
             throw mqClientException;
         }
-
+        // 没有设置NameServer地址错误
         List<String> nsList = this.getmQClientFactory().getMQClientAPIImpl().getNameServerAddressList();
         if (null == nsList || nsList.isEmpty()) {
             throw new MQClientException(
                 "No name server address, please set it." + FAQUrl.suggestTodo(FAQUrl.NAME_SERVER_ADDR_NOT_EXIST_URL), null).setResponseCode(ClientErrorCode.NO_NAME_SERVER_EXCEPTION);
         }
-
+        // 发送抛错没有找到Topic路由信息
         throw new MQClientException("No route info of this topic, " + msg.getTopic() + FAQUrl.suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO),
             null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }
@@ -722,11 +728,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      * TopicPublishinfo topicPublishlnfo ： 主题路由信息
      * long timeout ： 消息发送超时时间。
      */
-    private SendResult sendKernelImpl(final Message msg,
-                                      final MessageQueue mq,
-                                      final CommunicationMode communicationMode,
-                                      final SendCallback sendCallback,
-                                      final TopicPublishInfo topicPublishInfo,
+    private SendResult sendKernelImpl(final Message msg, //待发送的消息
+                                      final MessageQueue mq, //将消息发送到该队列上
+                                      final CommunicationMode communicationMode, //消息发送模式，SYNC、ASYNC、ONEWAY
+                                      final SendCallback sendCallback, //异步消息回调函数
+                                      final TopicPublishInfo topicPublishInfo, //主题路由信息
                                       final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
         // 根据MessageQueue 获取Broker 的网络地址。
@@ -783,7 +789,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     checkForbiddenContext.setUnitMode(this.isUnitMode());
                     this.executeCheckForbiddenHook(checkForbiddenContext);
                 }
-
+                //发送前钩子
                 if (this.hasSendMessageHook()) {
                     context = new SendMessageContext();
                     context.setProducer(this);
@@ -837,13 +843,15 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 requestHeader.setUnitMode(this.isUnitMode());
                 // 是否是批量消息等
                 requestHeader.setBatch(msg instanceof MessageBatch);
+                //重试队列设置requestHeader
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                    //获取已消费的次数
                     String reconsumeTimes = MessageAccessor.getReconsumeTime(msg);
                     if (reconsumeTimes != null) {
                         requestHeader.setReconsumeTimes(Integer.valueOf(reconsumeTimes));
                         MessageAccessor.clearProperty(msg, MessageConst.PROPERTY_RECONSUME_TIME);
                     }
-
+                    //最大消费次数
                     String maxReconsumeTimes = MessageAccessor.getMaxReconsumeTimes(msg);
                     if (maxReconsumeTimes != null) {
                         requestHeader.setMaxReconsumeTimes(Integer.valueOf(maxReconsumeTimes));

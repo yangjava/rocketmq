@@ -41,7 +41,7 @@ import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-
+// 客户端管理处理，主要包括：接收客户端心跳、去注册客户端、检查客户端配置，这里主要介绍接收客户端心跳的情况。
 public class ClientManageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -73,7 +73,10 @@ public class ClientManageProcessor implements NettyRequestProcessor {
 
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        // Broker通过解码客户端上报的心跳信息，会得到HeartbeatData对象，
+        // 该对象包括客户端实例的标识clientID以及该实例的生产者和消费者信息
         HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
+        // 会根据clientID和连接对象Channel关联到一个ClientChannelInfo，用于标识该客户端实例。
         ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
             ctx.channel(),
             heartbeatData.getClientID(),

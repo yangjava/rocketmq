@@ -33,7 +33,7 @@ public class Message implements Serializable {
      * Topic表示一类消息的集合，每个主题包含若干条消息，每条消息只能属于一个主题，是RocketMQ进行消息订阅的基本单位。
      */
     private String topic;
-    // 消息Flag(RocketMQ 不做处理），详情MessageSysFlag
+    // 消息Flag(RocketMQ不做处理），详情MessageSysFlag
     private int flag;
     // 扩展属性
     private Map<String, String> properties;
@@ -99,11 +99,12 @@ public class Message implements Serializable {
     }
 
     public void putUserProperty(final String name, final String value) {
+        // 不能使用系统自带的属性
         if (MessageConst.STRING_HASH_SET.contains(name)) {
             throw new RuntimeException(String.format(
                 "The Property<%s> is used by system, input another please", name));
         }
-
+        // name或者value不能为空
         if (value == null || value.trim().isEmpty()
             || name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException(
@@ -137,7 +138,8 @@ public class Message implements Serializable {
     public String getTags() {
         return this.getProperty(MessageConst.PROPERTY_TAGS);
     }
-
+    //  消息TAG ，用于消息过滤。
+    //  对应的Property：TAGS
     public void setTags(String tags) {
         this.putProperty(MessageConst.PROPERTY_TAGS, tags);
     }
@@ -164,7 +166,7 @@ public class Message implements Serializable {
 
         return 0;
     }
-
+    // 设置延迟级别 DELAY
     public void setDelayTimeLevel(int level) {
         this.putProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL, String.valueOf(level));
     }

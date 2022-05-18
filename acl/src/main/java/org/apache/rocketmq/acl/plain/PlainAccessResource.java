@@ -25,31 +25,35 @@ import org.apache.rocketmq.common.MixAll;
 public class PlainAccessResource implements AccessResource {
 
     // Identify the user
+    // 访问Key，用户名。
     private String accessKey;
-
+    // 用户密码。
     private String secretKey;
-
+    // 远程IP地址白名单。
     private String whiteRemoteAddress;
-
+    // 是否是管理员角色。
     private boolean admin;
-
+    // 默认topic访问权限，即如果没有配置topic的权限，则Topic默认的访问权限为1，表示为DENY。
     private byte defaultTopicPerm = 1;
-
+    // 默认的消费组访问权限，默认为DENY。
     private byte defaultGroupPerm = 1;
-
+    // 资源需要的访问权限映射表。
     private Map<String, Byte> resourcePermMap;
-
+    // 远程IP地址验证策略。
     private RemoteAddressStrategy remoteAddressStrategy;
-
+    // 当前请求的requestCode。
     private int requestCode;
 
     //the content to calculate the content
+    // 请求头与请求体的内容。
     private byte[] content;
-
+    // 签名字符串，这是通常的套路，在客户端时，
+    // 首先将请求参数排序，然后使用secretKey生成签名字符串，
+    // 服务端重复这个步骤，然后对比签名字符串，如果相同，则认为登录成功，否则失败。
     private String signature;
-
+    // 密钥token。
     private String secretToken;
-
+    // 目前作用未知，代码中目前未被使用。
     private String recognition;
 
     public PlainAccessResource() {

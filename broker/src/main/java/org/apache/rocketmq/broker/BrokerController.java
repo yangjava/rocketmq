@@ -109,33 +109,51 @@ public class BrokerController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final InternalLogger LOG_PROTECTION = InternalLoggerFactory.getLogger(LoggerName.PROTECTION_LOGGER_NAME);
     private static final InternalLogger LOG_WATER_MARK = InternalLoggerFactory.getLogger(LoggerName.WATER_MARK_LOGGER_NAME);
+    // BrokerStartup中准备的配置信息
     private final BrokerConfig brokerConfig;
     private final NettyServerConfig nettyServerConfig;
     private final NettyClientConfig nettyClientConfig;
     private final MessageStoreConfig messageStoreConfig;
+    // Consumer消费进度记录管理类，会读取store/config/consumerOffset.json配置文件，其维护了一个offsetTable -- Map 结构
     private final ConsumerOffsetManager consumerOffsetManager;
+    // 消费者管理类按照Group进行分组，对消费者的ID变化进行监听
     private final ConsumerManager consumerManager;
+    // 消费者的过滤器管理类，按照Topic进行分类，  会读取store/config/consumerFilter.json
     private final ConsumerFilterManager consumerFilterManager;
+    // 生产者管理类， 按照Topic进行分类
     private final ProducerManager producerManager;
+    // 心跳连接处理类， 用于清除不活动的链接。
     private final ClientHousekeepingService clientHousekeepingService;
+    // Consumer端使用pull的方式向Broker拉取消息请求的处理类，关联的业务code 为RequestCode.PULL_MESSAGE
     private final PullMessageProcessor pullMessageProcessor;
+    // Consumer使用Push方式的长轮询机制拉取请求时，保存使用，当有消息到达时进行推送处理的类
     private final PullRequestHoldService pullRequestHoldService;
+    // 有消息到达Broker时的监听器，回调pullRequestHoldService中的notifyMessageArriving()方法
     private final MessageArrivingListener messageArrivingListener;
+    // Console控制台获取Broker信息使用
     private final Broker2Client broker2Client;
+    // 订阅关系管理类
     private final SubscriptionGroupManager subscriptionGroupManager;
+    // 消费者ID变化监听器
     private final ConsumerIdsChangeListener consumerIdsChangeListener;
     private final RebalanceLockManager rebalanceLockManager = new RebalanceLockManager();
+    // Broker对外访问的API
     private final BrokerOuterAPI brokerOuterAPI;
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "BrokerControllerScheduledThread"));
+    // Broker主从同步进度管理类
     private final SlaveSynchronize slaveSynchronize;
+    // 各种线程池的阻塞队列
+    // 发送消息线程池队列
     private final BlockingQueue<Runnable> sendThreadPoolQueue;
+    // 拉取消息线程池队列
     private final BlockingQueue<Runnable> pullThreadPoolQueue;
     private final BlockingQueue<Runnable> queryThreadPoolQueue;
     private final BlockingQueue<Runnable> clientManagerThreadPoolQueue;
     private final BlockingQueue<Runnable> heartbeatThreadPoolQueue;
     private final BlockingQueue<Runnable> consumerManagerThreadPoolQueue;
     private final BlockingQueue<Runnable> endTransactionThreadPoolQueue;
+    // FilterServer管理类
     private final FilterServerManager filterServerManager;
     private final BrokerStatsManager brokerStatsManager;
     private final List<SendMessageHook> sendMessageHookList = new ArrayList<SendMessageHook>();
@@ -143,6 +161,7 @@ public class BrokerController {
     private MessageStore messageStore;
     private RemotingServer remotingServer;
     private RemotingServer fastRemotingServer;
+    // 消息Topic维度的管理查询类， 管理Topic和Topic相关的配置关系，会读取store/config/topics.json
     private TopicConfigManager topicConfigManager;
     private ExecutorService sendMessageExecutor;
     private ExecutorService pullMessageExecutor;
@@ -225,23 +244,29 @@ public class BrokerController {
     public BlockingQueue<Runnable> getQueryThreadPoolQueue() {
         return queryThreadPoolQueue;
     }
-
+    // 加载服务器config/目录下的所有配置文件、日志文件。
     public boolean initialize() throws CloneNotSupportedException {
+        // Topic相关配置
         boolean result = this.topicConfigManager.load();
-
+        // Consumer消费消息进度情况
         result = result && this.consumerOffsetManager.load();
+        // Consumer订阅关系
         result = result && this.subscriptionGroupManager.load();
+        // Consumer过滤关系
         result = result && this.consumerFilterManager.load();
 
         if (result) {
             try {
+                // 创建消息存储类DefaultMessageStore
                 this.messageStore =
                     new DefaultMessageStore(this.messageStoreConfig, this.brokerStatsManager, this.messageArrivingListener,
                         this.brokerConfig);
+                // 如果是DLegerCommitLog，加载DLedgerRoleChangeHandler
                 if (messageStoreConfig.isEnableDLegerCommitLog()) {
                     DLedgerRoleChangeHandler roleChangeHandler = new DLedgerRoleChangeHandler(this, (DefaultMessageStore) messageStore);
                     ((DLedgerCommitLog)((DefaultMessageStore) messageStore).getCommitLog()).getdLedgerServer().getdLedgerLeaderElector().addRoleChangeHandler(roleChangeHandler);
                 }
+                // 加载统计信息
                 this.brokerStats = new BrokerStats((DefaultMessageStore) this.messageStore);
                 //load plugin
                 MessageStorePluginContext context = new MessageStorePluginContext(messageStoreConfig, brokerStatsManager, messageArrivingListener, brokerConfig);
@@ -252,7 +277,7 @@ public class BrokerController {
                 log.error("Failed to initialize", e);
             }
         }
-
+        // 加载CommitLog、ConsumeQueue日志文件。
         result = result && this.messageStore.load();
 
         if (result) {
@@ -489,17 +514,22 @@ public class BrokerController {
     }
 
     private void initialAcl() {
+        // 首先判断Broker是否开启了acl，通过配置参数aclEnable指定，默认为false。
         if (!this.brokerConfig.isAclEnable()) {
             log.info("The broker dose not enable acl");
             return;
         }
-
+        // 使用类似SPI机制，加载配置的AccessValidator,该方法返回一个列表，
+        // 其实现逻辑时读取META-INF/service/org.apache.rocketmq.acl.AccessValidator文件中配置的访问验证器
         List<AccessValidator> accessValidators = ServiceProvider.load(ServiceProvider.ACL_VALIDATOR_ID, AccessValidator.class);
         if (accessValidators == null || accessValidators.isEmpty()) {
             log.info("The broker dose not load the AccessValidator");
             return;
         }
-
+        // 遍历配置的访问验证器(AccessValidator),并向Broker处理服务器注册钩子函数，
+        // RPCHook的doBeforeRequest方法会在服务端接收到请求，将其请求解码后，
+        // 执行处理请求之前被调用;RPCHook的doAfterResponse方法会在处理完请求后，
+        // 将结果返回之前被调用
         for (AccessValidator accessValidator: accessValidators) {
             final AccessValidator validator = accessValidator;
             this.registerServerRPCHook(new RPCHook() {
@@ -507,6 +537,9 @@ public class BrokerController {
                 @Override
                 public void doBeforeRequest(String remoteAddr, RemotingCommand request) {
                     //Do not catch the exception
+                    // 在RPCHook#doBeforeRequest方法中调用AccessValidator#validate,
+                    // 在真实处理命令之前，先执行ACL的验证逻辑
+                    // ，如果拥有该操作的执行权限，则放行，否则抛出AclException。
                     validator.validate(validator.parse(request, remoteAddr));
                 }
 

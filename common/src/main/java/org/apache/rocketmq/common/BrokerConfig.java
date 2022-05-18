@@ -27,28 +27,38 @@ import org.apache.rocketmq.remoting.common.RemotingUtil;
 
 public class BrokerConfig {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
-
+    // 获取rocketMq目录
     private String rocketmqHome = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
+    // 获取namesrvAddr地址
     @ImportantField
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
     @ImportantField
+    // 获取本地地址
     private String brokerIP1 = RemotingUtil.getLocalAddress();
+    // 获取本地地址
     private String brokerIP2 = RemotingUtil.getLocalAddress();
     @ImportantField
+    // 获取broker hostname
     private String brokerName = localHostName();
     @ImportantField
+    // 默认集群名称
     private String brokerClusterName = "DefaultCluster";
     @ImportantField
+    // master集群ID 必须为0
     private long brokerId = MixAll.MASTER_ID;
+    // broker权限 默认读与写
     private int brokerPermission = PermName.PERM_READ | PermName.PERM_WRITE;
+    // 默认队列数量
     private int defaultTopicQueueNums = 8;
     @ImportantField
+    // 自动创建Topic功能是否开启（线上建议关闭）
     private boolean autoCreateTopicEnable = true;
-
+    // 自动创建以集群名字命名的Topic功能是否开启
     private boolean clusterTopicEnable = true;
-
+    // 自动创建以服务器名字命名的Topic功能是否开启
     private boolean brokerTopicEnable = true;
     @ImportantField
+    // 自动创建订阅组功能是否开启（线上建议关闭）
     private boolean autoCreateSubscriptionGroup = true;
     private String messageStorePlugIn = "";
     @ImportantField
@@ -60,10 +70,13 @@ public class BrokerConfig {
      * value is 1.
      */
     private int sendMessageThreadPoolNums = 1; //16 + Runtime.getRuntime().availableProcessors() * 4;
+    // 发送消息线程池数量
     private int pullMessageThreadPoolNums = 16 + Runtime.getRuntime().availableProcessors() * 2;
+    // 订阅消息线程池数量
     private int queryMessageThreadPoolNums = 8 + Runtime.getRuntime().availableProcessors();
-
+    // 线程池数量 各自独立的线程池 做到线程池隔离
     private int adminBrokerThreadPoolNums = 16;
+    // clientManage线程池数量
     private int clientManageThreadPoolNums = 32;
     private int consumerManageThreadPoolNums = 32;
     private int heartbeatThreadPoolNums = Math.min(32, Runtime.getRuntime().availableProcessors());
@@ -72,29 +85,46 @@ public class BrokerConfig {
      * Thread numbers for EndTransactionProcessor
      */
     private int endTransactionThreadPoolNums = 8 + Runtime.getRuntime().availableProcessors() * 2;
-
+    // 持久化消息消费进度 consumerOffse.json文件的频率ms
     private int flushConsumerOffsetInterval = 1000 * 5;
-
+    // flush消费端 历史文件偏移时间戳 默认1
     private int flushConsumerOffsetHistoryInterval = 1000 * 60;
 
     @ImportantField
+    // 是否拒绝接收事务消息
     private boolean rejectTransactionMessage = false;
     @ImportantField
+    //  是否从地址服务器寻找NameServer地址，正式发布后，默认值为false
     private boolean fetchNamesrvAddrByAddressServer = false;
+    // 发送消息对应的线程池阻塞队列size
     private int sendThreadPoolQueueCapacity = 10000;
+    // 订阅消息对应的线程池阻塞队列size
     private int pullThreadPoolQueueCapacity = 100000;
     private int queryThreadPoolQueueCapacity = 20000;
     private int clientManagerThreadPoolQueueCapacity = 1000000;
     private int consumerManagerThreadPoolQueueCapacity = 1000000;
     private int heartbeatThreadPoolQueueCapacity = 50000;
     private int endTransactionPoolQueueCapacity = 100000;
-
+    // 过滤服务器数量
     private int filterServerNums = 0;
-
+    // 消息拉取为了提高网络性能，在消息服务端根据拉取偏移量去物理文件查找消息时没有找到，
+    // 并不立即返回消息未找到，而是会将该线程挂起一段时间，然后再次重试，直到重试。
+    // 挂起分为长轮询或短轮询，
+    // 在broker 端可以通过 longPollingEnable=true 来开启长轮询。
+    //
+    //短轮询：longPollingEnable=false，
+    // 第一次未拉取到消息后等待 shortPollingTimeMills时间后再试。
+    // shortPollingTimeMills默认为1S。
+    //
+    //长轮询：longPollingEnable=true，会根据消费者端设置的挂起超时时间，
+    // 受DefaultMQPullConsumer 的brokerSuspendMaxTimeMillis控制，
+    // 默认20s,（brokerSuspendMaxTimeMillis），
+    // 长轮询有两个线程来相互实现。
+    // Consumer订阅消息时，Broker是否开启长轮询
     private boolean longPollingEnable = true;
-
+    // 如果是短轮询，服务器挂起时间
     private long shortPollingTimeMills = 1000;
-
+    // notify consumerId changed 开关
     private boolean notifyConsumerIdsChangedEnable = true;
 
     private boolean highSpeedMode = false;
@@ -136,6 +166,7 @@ public class BrokerConfig {
     private int expectConsumerNumUseFilter = 32;
 
     // Error rate of bloom filter, 1~100.
+    // 布隆过滤器参数
     private int maxErrorRateOfBloomFilter = 20;
 
     //how long to clean filter data after dead.Default: 24h

@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Consumer filter data manager.Just manage the consumers use expression filter.
  */
+// 消费者过滤管理
 public class ConsumerFilterManager extends ConfigManager {
 
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.FILTER_LOGGER_NAME);

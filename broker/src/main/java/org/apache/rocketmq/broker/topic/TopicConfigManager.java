@@ -43,6 +43,7 @@ import org.apache.rocketmq.common.sysflag.TopicSysFlag;
 /**
  * 在Broker启动的时候会创建topicConfigManager对象，用来管理topic的路由信息。
  */
+// topic配置管理
 public class TopicConfigManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long LOCK_TIMEOUT_MILLIS = 3000;

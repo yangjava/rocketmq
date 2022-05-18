@@ -233,15 +233,21 @@ public class MappedFile extends ReferenceResource {
     public AppendMessageResult appendMessagesInner(final MessageExt messageExt, final AppendMessageCallback cb) {
         assert messageExt != null;
         assert cb != null;
-
+        //当前MappedFile的写入位置
         int currentPos = this.wrotePosition.get();
-
+        //文件还有剩余空间（小于1G继续写入）
         if (currentPos < this.fileSize) {
+            //仅当transientStorePoolEnable 为true，刷盘策略为异步刷盘（FlushDiskType为ASYNC_FLUSH）,并且broker为主节点时，才启用堆外分配内存。此时：writeBuffer不为null
+            //Buffer与同步和异步刷盘相关
+            //writeBuffer/mappedByteBuffer的position始终为0，而limit则始终等于capacity
+            //slice创建一个新的buffer, 是根据position和limit来生成byteBuffer
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             byteBuffer.position(currentPos);
             AppendMessageResult result = null;
+            //处理单个消息
             if (messageExt instanceof MessageExtBrokerInner) {
                 result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBrokerInner) messageExt);
+                //处理批量消息
             } else if (messageExt instanceof MessageExtBatch) {
                 result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBatch) messageExt);
             } else {
@@ -251,6 +257,7 @@ public class MappedFile extends ReferenceResource {
             this.storeTimestamp = result.getStoreTimestamp();
             return result;
         }
+        //写满会报错，正常不会进入该代码，调用该方法前有判断
         log.error("MappedFile.appendMessage return null, wrotePosition: {} fileSize: {}", currentPos, this.fileSize);
         return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
     }

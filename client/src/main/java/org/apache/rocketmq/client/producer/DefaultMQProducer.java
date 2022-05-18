@@ -58,6 +58,15 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
  * and used among multiple threads context.
  * </p>
  */
+
+/**
+ * Producer可以将消息写入到某Broker中的某Queue中，其经历了如下过程：
+ *      Producer发送消息之前，会先向NameServer发出获取消息Topic的路由信息的请求
+ *      NameServer返回该Topic的路由表及Broker列表
+ *      Producer根据代码中指定的Queue选择策略，从Queue列表中选出一个队列，用于后续存储消息
+ *      Produer对消息做一些特殊处理，例如，消息本身超过4M，则会对其进行压缩
+ *      Producer向选择出的Queue所在的Broker发出RPC请求，将消息发送到选择出的Queue
+ */
 public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     private final InternalLogger log = ClientLogger.getLog();

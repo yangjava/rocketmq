@@ -338,7 +338,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
 
         final RemotingCommand response = RemotingCommand.createResponseCommand(GetBrokerConfigResponseHeader.class);
         final GetBrokerConfigResponseHeader responseHeader = (GetBrokerConfigResponseHeader) response.readCustomHeader();
-
+        //        从内存中获取配置信息
         String content = this.brokerController.getConfiguration().getAllConfigsFormatString();
         if (content != null && content.length() > 0) {
             try {
@@ -425,7 +425,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
 
     private RemotingCommand getBrokerRuntimeInfo(ChannelHandlerContext ctx, RemotingCommand request) {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-
+        //   获取broker运行时信息
         HashMap<String, String> runtimeInfo = this.prepareRuntimeInfo();
         KVTable kvTable = new KVTable();
         kvTable.setTable(runtimeInfo);
@@ -1192,56 +1192,71 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
 
     private HashMap<String, String> prepareRuntimeInfo() {
         HashMap<String, String> runtimeInfo = this.brokerController.getMessageStore().getRuntimeInfo();
+        // rocketmq版本号
         runtimeInfo.put("brokerVersionDesc", MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION));
         runtimeInfo.put("brokerVersion", String.valueOf(MQVersion.CURRENT_VERSION));
-
+        //        昨天存储的消息数量
         runtimeInfo.put("msgPutTotalYesterdayMorning",
             String.valueOf(this.brokerController.getBrokerStats().getMsgPutTotalYesterdayMorning()));
+        //        今天存储的消息数量
         runtimeInfo.put("msgPutTotalTodayMorning", String.valueOf(this.brokerController.getBrokerStats().getMsgPutTotalTodayMorning()));
+        //        现在存储的消息数量
         runtimeInfo.put("msgPutTotalTodayNow", String.valueOf(this.brokerController.getBrokerStats().getMsgPutTotalTodayNow()));
-
+        //        昨天消费的消息数量
         runtimeInfo.put("msgGetTotalYesterdayMorning",
             String.valueOf(this.brokerController.getBrokerStats().getMsgGetTotalYesterdayMorning()));
+        //        今天消费的消息数量
         runtimeInfo.put("msgGetTotalTodayMorning", String.valueOf(this.brokerController.getBrokerStats().getMsgGetTotalTodayMorning()));
+        //        现在消费的消息数量
         runtimeInfo.put("msgGetTotalTodayNow", String.valueOf(this.brokerController.getBrokerStats().getMsgGetTotalTodayNow()));
-
+        //        发送消息线程池队列大小
         runtimeInfo.put("sendThreadPoolQueueSize", String.valueOf(this.brokerController.getSendThreadPoolQueue().size()));
-
+        //        发送消息线程池队列容量大小10000
         runtimeInfo.put("sendThreadPoolQueueCapacity",
             String.valueOf(this.brokerController.getBrokerConfig().getSendThreadPoolQueueCapacity()));
-
+        //        拉取消息线程池队列大小
         runtimeInfo.put("pullThreadPoolQueueSize", String.valueOf(this.brokerController.getPullThreadPoolQueue().size()));
+        //        拉取消息线程池队列容量大小100000
         runtimeInfo.put("pullThreadPoolQueueCapacity",
             String.valueOf(this.brokerController.getBrokerConfig().getPullThreadPoolQueueCapacity()));
-
+        //        查询线程池队列大小
         runtimeInfo.put("queryThreadPoolQueueSize", String.valueOf(this.brokerController.getQueryThreadPoolQueue().size()));
+        //        查询线程池队列容量大小20000
         runtimeInfo.put("queryThreadPoolQueueCapacity",
             String.valueOf(this.brokerController.getBrokerConfig().getQueryThreadPoolQueueCapacity()));
 
         runtimeInfo.put("EndTransactionQueueSize", String.valueOf(this.brokerController.getEndTransactionThreadPoolQueue().size()));
         runtimeInfo.put("EndTransactionThreadPoolQueueCapacity",
             String.valueOf(this.brokerController.getBrokerConfig().getEndTransactionPoolQueueCapacity()));
-
+        //        在commitLog中但是尚未分配队列的字节数=commitLog的maxOffset-再次存储消息的fromOffset =》
         runtimeInfo.put("dispatchBehindBytes", String.valueOf(this.brokerController.getMessageStore().dispatchBehindBytes()));
+        //       缓存锁定时间
         runtimeInfo.put("pageCacheLockTimeMills", String.valueOf(this.brokerController.getMessageStore().lockTimeMills()));
-
+        //        发送线程池队列头部元素等待时间=现在时间-队列头部元素创建时间
         runtimeInfo.put("sendThreadPoolQueueHeadWaitTimeMills", String.valueOf(this.brokerController.headSlowTimeMills4SendThreadPoolQueue()));
+        //        拉取消息线程池队列头部元素等待时间=现在时间-队列头部元素创建时间
         runtimeInfo.put("pullThreadPoolQueueHeadWaitTimeMills", String.valueOf(this.brokerController.headSlowTimeMills4PullThreadPoolQueue()));
+        //        查询消息线程池队列头部元素等待时间=现在时间-队列头部元素创建时间
         runtimeInfo.put("queryThreadPoolQueueHeadWaitTimeMills", String.valueOf(this.brokerController.headSlowTimeMills4QueryThreadPoolQueue()));
-
+        //        最早消息存储的时间
         runtimeInfo.put("earliestMessageTimeStamp", String.valueOf(this.brokerController.getMessageStore().getEarliestMessageTime()));
+        //        开始接收发送请求的时间
         runtimeInfo.put("startAcceptSendRequestTimeStamp", String.valueOf(this.brokerController.getBrokerConfig().getStartAcceptSendRequestTimeStamp()));
         if (this.brokerController.getMessageStore() instanceof DefaultMessageStore) {
             DefaultMessageStore defaultMessageStore = (DefaultMessageStore) this.brokerController.getMessageStore();
+            //            保存异步刷新消息到磁盘之前存储消息的缓冲区大小
             runtimeInfo.put("remainTransientStoreBufferNumbs", String.valueOf(defaultMessageStore.remainTransientStoreBufferNumbs()));
             if (defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
+                //                最多消息可提交的消息大小=最大可写的位置-已提交的位置
                 runtimeInfo.put("remainHowManyDataToCommit", MixAll.humanReadableByteCount(defaultMessageStore.getCommitLog().remainHowManyDataToCommit(), false));
             }
+            //            最多消息可刷新的消息大小=最大偏移量0-消息刷新位置
             runtimeInfo.put("remainHowManyDataToFlush", MixAll.humanReadableByteCount(defaultMessageStore.getCommitLog().remainHowManyDataToFlush(), false));
         }
 
         java.io.File commitLogDir = new java.io.File(this.brokerController.getMessageStoreConfig().getStorePathRootDir());
         if (commitLogDir.exists()) {
+            //            commitLog文件夹的容量大小=总大小-可用容量
             runtimeInfo.put("commitLogDirCapacity", String.format("Total : %s, Free : %s.", MixAll.humanReadableByteCount(commitLogDir.getTotalSpace(), false), MixAll.humanReadableByteCount(commitLogDir.getFreeSpace(), false)));
         }
 

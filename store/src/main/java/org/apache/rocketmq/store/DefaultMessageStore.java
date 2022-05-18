@@ -121,24 +121,32 @@ public class DefaultMessageStore implements MessageStore {
         this.brokerConfig = brokerConfig;
         this.messageStoreConfig = messageStoreConfig;
         this.brokerStatsManager = brokerStatsManager;
+        // 初始化分配MappedFile文件服务
         this.allocateMappedFileService = new AllocateMappedFileService(this);
+        // 初始化CommitLog存储服务
         if (messageStoreConfig.isEnableDLegerCommitLog()) {
             this.commitLog = new DLedgerCommitLog(this);
         } else {
             this.commitLog = new CommitLog(this);
         }
+        // 初始化消费队列信息
         this.consumeQueueTable = new ConcurrentHashMap<>(32);
-
+        // 初始化 队列文件ConsumeQueue刷盘服务
         this.flushConsumeQueueService = new FlushConsumeQueueService();
+        // 初始化  清理CommitLog文件服务
         this.cleanCommitLogService = new CleanCommitLogService();
+        // 初始化  清理ConsumeQueue文件服务
         this.cleanConsumeQueueService = new CleanConsumeQueueService();
         this.storeStatsService = new StoreStatsService();
+        // 初始化  队列索引服务
         this.indexService = new IndexService(this);
+        // 初始化  高可用服务，主从复制
         if (!messageStoreConfig.isEnableDLegerCommitLog()) {
             this.haService = new HAService(this);
         } else {
             this.haService = null;
         }
+        // 初始化  根据CommitLog文件构建ConsumeQueue、IndexFile文件服务
         this.reputMessageService = new ReputMessageService();
 
         this.scheduleMessageService = new ScheduleMessageService(this);
@@ -148,9 +156,9 @@ public class DefaultMessageStore implements MessageStore {
         if (messageStoreConfig.isTransientStorePoolEnable()) {
             this.transientStorePool.init();
         }
-
+        // 启动分配MappedFile文件线程
         this.allocateMappedFileService.start();
-
+        // 启动队列索引文件服务， 空实现
         this.indexService.start();
 
         this.dispatcherList = new LinkedList<>();
@@ -383,6 +391,7 @@ public class DefaultMessageStore implements MessageStore {
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
         // 当前Rocket 不支持写入则拒绝消息写入
+        // 出现该错误可能磁盘已满
         if (!this.runningFlags.isWriteable()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -403,20 +412,26 @@ public class DefaultMessageStore implements MessageStore {
             log.warn("putMessage message properties length too long " + msg.getPropertiesString().length());
             return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
         }
-       // OSPageCache繁忙将拒绝该消息写入
+        // OSPageCache繁忙将拒绝该消息写入
+        //判断PageCache是否繁忙：阀值[osPageCacheBusyTimeOutMills = 1000 ] 比较时间为当前时间与Commit Lock时间之差
+        //如果返回true，意味着此时有消息在写入CommitLog，且那条消息的写入耗时较长（超过1s），则本条消息不再写入
+        //返回内存页写入繁忙
         if (this.isOSPageCacheBusy()) {
             return new PutMessageResult(PutMessageStatus.OS_PAGECACHE_BUSY, null);
         }
 
         long beginTime = this.getSystemClock().now();
+        //将消息写入CommitLog
         PutMessageResult result = this.commitLog.putMessage(msg);
 
         long eclipseTime = this.getSystemClock().now() - beginTime;
+        //消息写入时间过长，发出警告
         if (eclipseTime > 500) {
             log.warn("putMessage not in lock eclipse time(ms)={}, bodyLength={}", eclipseTime, msg.getBody().length);
         }
+        //对消息的存储耗时进行分级记录，并记录当前所有消息存储时的最大耗时
         this.storeStatsService.setPutMessageEntireTimeMax(eclipseTime);
-
+        //记录存粗失败次数
         if (null == result || !result.isOk()) {
             this.storeStatsService.getPutMessageFailedTimes().incrementAndGet();
         }
@@ -757,10 +772,12 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public HashMap<String, String> getRuntimeInfo() {
+        //获取storeStatsService运行时信息
         HashMap<String, String> result = this.storeStatsService.getRuntimeInfo();
 
         {
             String storePathPhysic = DefaultMessageStore.this.getMessageStoreConfig().getStorePathCommitLog();
+            //            提交日志磁盘比率
             double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
             result.put(RunningStats.commitLogDiskRatio.name(), String.valueOf(physicRatio));
 
@@ -769,17 +786,20 @@ public class DefaultMessageStore implements MessageStore {
         {
 
             String storePathLogics = StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir());
+            //            使用队列磁盘比率
             double logicsRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathLogics);
             result.put(RunningStats.consumeQueueDiskRatio.name(), String.valueOf(logicsRatio));
         }
 
         {
             if (this.scheduleMessageService != null) {
+                //                计划消息偏移量
                 this.scheduleMessageService.buildRunningStats(result);
             }
         }
-
+        //提交日志最小偏移量
         result.put(RunningStats.commitLogMinOffset.name(), String.valueOf(DefaultMessageStore.this.getMinPhyOffset()));
+        //提交日志最大偏移量
         result.put(RunningStats.commitLogMaxOffset.name(), String.valueOf(DefaultMessageStore.this.getMaxPhyOffset()));
 
         return result;

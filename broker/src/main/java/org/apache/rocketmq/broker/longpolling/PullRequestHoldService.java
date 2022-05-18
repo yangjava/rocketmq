@@ -28,7 +28,7 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.ConsumeQueueExt;
-
+// 拉取请求缓存服务
 public class PullRequestHoldService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final String TOPIC_QUEUEID_SEPARATOR = "@";
@@ -40,7 +40,9 @@ public class PullRequestHoldService extends ServiceThread {
     public PullRequestHoldService(final BrokerController brokerController) {
         this.brokerController = brokerController;
     }
-
+    // 根据主题名称 + 队列id, 获取 ManyPullRequest,
+    // 对于同一个 topic + 队列的拉取请求用 ManyPullRequest包装，
+    // 然后将 pullRequest 添加到 ManyPullRequest 中。
     public void suspendPullRequest(final String topic, final int queueId, final PullRequest pullRequest) {
         String key = this.buildKey(topic, queueId);
         ManyPullRequest mpr = this.pullRequestTable.get(key);
@@ -68,13 +70,18 @@ public class PullRequestHoldService extends ServiceThread {
         log.info("{} service started", this.getServiceName());
         while (!this.isStopped()) {
             try {
+                // 如果开启了长轮询模式，则每次只挂起 5s，然后就去尝试拉取。
                 if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                     this.waitForRunning(5 * 1000);
                 } else {
+                    // 如果不开启长轮询模式，则只挂起一次，挂起时间为 shortPollingTimeMills，然后去尝试查找消息。
                     this.waitForRunning(this.brokerController.getBrokerConfig().getShortPollingTimeMills());
                 }
 
                 long beginLockTimestamp = this.systemClock.now();
+                // 遍历 pullRequestTable，
+                // 如果拉取任务的待拉取偏移量小于当前队列的最大偏移量时执行拉取，
+                // 否则如果没有超过最大等待时间则等待，否则返回未拉取到消息，返回给消息拉取客户端。
                 this.checkHoldRequest();
                 long costTime = this.systemClock.now() - beginLockTimestamp;
                 if (costTime > 5 * 1000) {

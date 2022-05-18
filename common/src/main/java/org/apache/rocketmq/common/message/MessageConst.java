@@ -18,7 +18,11 @@ package org.apache.rocketmq.common.message;
 
 import java.util.HashSet;
 
+/**
+ * 消息常量
+ */
 public class MessageConst {
+    // 消息属性PROPERTY常量
     public static final String PROPERTY_KEYS = "KEYS";
     public static final String PROPERTY_TAGS = "TAGS";
     public static final String PROPERTY_WAIT_STORE_MSG_OK = "WAIT";
@@ -49,7 +53,7 @@ public class MessageConst {
     public static final String KEY_SEPARATOR = " ";
 
     public static final HashSet<String> STRING_HASH_SET = new HashSet<String>();
-
+    // 消息PROPERTY常量
     static {
         STRING_HASH_SET.add(PROPERTY_TRACE_SWITCH);
         STRING_HASH_SET.add(PROPERTY_MSG_REGION);

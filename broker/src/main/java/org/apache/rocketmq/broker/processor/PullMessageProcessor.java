@@ -65,7 +65,7 @@ import org.apache.rocketmq.store.MessageFilter;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
-
+// 拉取消息处理器
 public class PullMessageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -85,7 +85,9 @@ public class PullMessageProcessor implements NettyRequestProcessor {
     public boolean rejectRequest() {
         return false;
     }
-
+    // Channel channel：网络通道
+    // RemotingCommand request：消息拉取请求
+    // brokerAllowSuspend：是否允许挂起，也就是是否允许在未找到消息时暂时挂起线程。第一次调用时默认为true。
     private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend)
         throws RemotingCommandException {
         // 构建返回给consumer端的response并解析发送到broker端的request
@@ -412,9 +414,13 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     }
                     break;
                 case ResponseCode.PULL_NOT_FOUND:
-
+                    // hasSuspendFlag, 构建消息拉取时的拉取标记，默认为true。
                     if (brokerAllowSuspend && hasSuspendFlag) {
+                        // suspendTimeoutMillisLong：取自 DefaultMQPullConsumer 的 brokerSuspendMaxTimeMillis属性。
                         long pollingTimeMills = suspendTimeoutMillisLong;
+                        // 如果不支持长轮询，则忽略 brokerSuspendMaxTimeMillis 属性，
+                        // 使用 shortPollingTimeMills，
+                        // 默认为1000ms作为下一次拉取消息的等待时间。
                         if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                             pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();
                         }
@@ -422,9 +428,11 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                         String topic = requestHeader.getTopic();
                         long offset = requestHeader.getQueueOffset();
                         int queueId = requestHeader.getQueueId();
+                        // 创建 PullRequest, 然后提交给 PullRequestHoldService 线程去调度，触发消息拉取。
                         PullRequest pullRequest = new PullRequest(request, channel, pollingTimeMills,
                             this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
                         this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
+                        // 关键，设置response=null，则此时此次调用不会向客户端输出任何字节，客户端网络请求客户端的读事件不会触发，不会触发对响应结果的处理，处于等待状态。
                         response = null;
                         break;
                     }

@@ -23,16 +23,20 @@ import org.apache.rocketmq.store.ConsumeQueue;
 public class MessageStoreConfig {
     //The root directory in which the log data is kept
     @ImportantField
+    // 存储根目录
     private String storePathRootDir = System.getProperty("user.home") + File.separator + "store";
 
     //The directory in which the commitlog is kept
     @ImportantField
+    // CommitLog存储目录
     private String storePathCommitLog = System.getProperty("user.home") + File.separator + "store"
         + File.separator + "commitlog";
 
     // CommitLog file size,default is 1G
+    // CommitLog每个文件大小 1G
     private int mapedFileSizeCommitLog = 1024 * 1024 * 1024;
     // ConsumeQueue file size,default is 30W
+    // ConsumeQueue每个文件大小 默认存储30W条消息
     private int mapedFileSizeConsumeQueue = 300000 * ConsumeQueue.CQ_STORE_UNIT_SIZE;
     // enable consume queue ext
     private boolean enableConsumeQueueExt = false;
@@ -45,6 +49,7 @@ public class MessageStoreConfig {
     // CommitLog flush interval
     // flush data to disk
     @ImportantField
+    // CommitLog刷盘间隔时间（单位毫秒）
     private int flushIntervalCommitLog = 500;
 
     // Only used if TransientStorePool enabled
@@ -60,23 +65,28 @@ public class MessageStoreConfig {
 
     // Whether schedule flush,default is real-time
     @ImportantField
+    // 是否定时方式刷盘，默认是实时刷盘
     private boolean flushCommitLogTimed = false;
     // ConsumeQueue flush interval
+    // ConsumeQueue刷盘间隔时间（单位毫秒）
     private int flushIntervalConsumeQueue = 1000;
     // Resource reclaim interval
-    // 检测是否需要清除过期文件频率，默认10s
+    // 清理资源间隔时间（单位毫秒）检测是否需要清除过期文件频率，默认10s
     private int cleanResourceInterval = 10000;
     // CommitLog removal interval
     // 删除物理文件的间隔，因为在一次清除过程中，可能需要删除的文件不止一个，该值指定两次删除文件的间隔时间。
     private int deleteCommitLogFilesInterval = 100;
     // ConsumeQueue removal interval
+    // 删除多个ConsumeQueue文件的间隔时间（单位毫秒）
     private int deleteConsumeQueueFilesInterval = 100;
     // 在清除过期文件时，如果该文件被其他线程所占用（引用次数大于0，比如读取消息），
     // 此时会阻止此次删除任务,同时在第一次试图删除该文件时记录当前时间戳，
     // destroyMapedFileIntervalForcibly表示第一次拒绝删除之后能保留的最大时间，
     // 在此时间内，同样可以被拒绝删除，同时会将引用减少1000个，超过该时间间隔后，
     // 文件将被强制删除。
+    // 强制删除文件间隔时间（单位毫秒）
     private int destroyMapedFileIntervalForcibly = 1000 * 120;
+    // 定期检查Hanged文件间隔时间（单位毫秒）
     private int redeleteHangedFileInterval = 1000 * 120;
     // When to delete,default is at 4 am
     @ImportantField
@@ -89,47 +99,66 @@ public class MessageStoreConfig {
     //文件保留时间，也就是从最后一次更新时间到现在，如果超过了该时间，则认为是过期文件，可以被删除。
     private int fileReservedTime = 72;
     // Flow control for ConsumeQueue
+    // 写消息索引到ConsumeQueue，缓冲区高水位，超过则开始流控
     private int putMsgIndexHightWater = 600000;
     // The maximum size of a single log file,default is 512K
+    // 最大消息大小，默认512K
     private int maxMessageSize = 1024 * 1024 * 4;
     // Whether check the CRC32 of the records consumed.
     // This ensures no on-the-wire or on-disk corruption to the messages occurred.
     // This check adds some overhead,so it may be disabled in cases seeking extreme performance.
+    // 重启时，是否校验CRC
     private boolean checkCRCOnRecover = true;
     // How many pages are to be flushed when flush CommitLog
+    // 刷CommitLog，至少刷几个PAGE
     private int flushCommitLogLeastPages = 4;
     // How many pages are to be committed when commit data to file
+    // 刷ConsumeQueue，至少刷几个PAGE
     private int commitCommitLogLeastPages = 4;
     // Flush page size when the disk in warming state
+    // 刷CommitLog，彻底刷盘间隔时间
     private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
     // How many pages are to be flushed when flush ConsumeQueue
     private int flushConsumeQueueLeastPages = 2;
+    // 刷ConsumeQueue，彻底刷盘间隔时间
     private int flushCommitLogThoroughInterval = 1000 * 10;
     private int commitCommitLogThoroughInterval = 200;
+    // 刷ConsumeQueue，彻底刷盘间隔时间
     private int flushConsumeQueueThoroughInterval = 1000 * 60;
     @ImportantField
+    // 最大被拉取的消息字节数，消息在内存
     private int maxTransferBytesOnMessageInMemory = 1024 * 256;
     @ImportantField
+    // 最大被拉取的消息字节数，消息在磁盘
     private int maxTransferCountOnMessageInMemory = 32;
     @ImportantField
     private int maxTransferBytesOnMessageInDisk = 1024 * 64;
     @ImportantField
+    // 最大被拉取的消息个数，消息在磁盘
     private int maxTransferCountOnMessageInDisk = 8;
     @ImportantField
+    // 命中消息在内存的最大比例
     private int accessMessageInMemoryMaxRatio = 40;
     @ImportantField
+    // 是否开启消息索引功能
     private boolean messageIndexEnable = true;
     private int maxHashSlotNum = 5000000;
     private int maxIndexNum = 5000000 * 4;
     private int maxMsgsNumBatch = 64;
     @ImportantField
+    // 是否使用安全的消息索引功能，即可靠模式。
+    // 可靠模式下，异常宕机恢复慢
+    // 非可靠模式下，异常宕机恢复快
     private boolean messageIndexSafe = false;
+    // HA功能
     private int haListenPort = 10912;
     private int haSendHeartbeatInterval = 1000 * 5;
     private int haHousekeepingInterval = 1000 * 20;
     private int haTransferBatchSize = 1024 * 32;
     @ImportantField
+    // 如果不设置，则从NameServer获取Master HA服务地址
     private String haMasterAddress = null;
+    // Slave落后Master超过此值，则认为存在异常
     private int haSlaveFallbehindMax = 1024 * 1024 * 256;
     @ImportantField
     private BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
@@ -149,21 +178,25 @@ public class MessageStoreConfig {
      */
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
+    // 同步刷盘超时时间
     private int syncFlushTimeout = 1000 * 5;
-    // 延迟级别
+    // 延迟级别 定时消息相关,从1开始
     private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
     private long flushDelayOffsetInterval = 1000 * 10;
     @ImportantField
+    // 磁盘空间超过90%警戒水位，自动开始删除文件
     private boolean cleanFileForciblyEnable = true;
     private boolean warmMapedFileEnable = false;
     private boolean offsetCheckInSlave = false;
     private boolean debugLockEnable = false;
     private boolean duplicationEnable = false;
     private boolean diskFallRecorded = true;
+    // osPageCacheBusyTimeOutMills 设置 PageCache 系统超时的时间，默认为 1000，表示 1s
     private long osPageCacheBusyTimeOutMills = 1000;
     private int defaultQueryMaxNum = 32;
 
     @ImportantField
+    // Commitlog是否开启 transientStorePool机制,默认为 false
     private boolean transientStorePoolEnable = false;
     private int transientStorePoolSize = 5;
     private boolean fastFailIfNoBufferInStorePool = false;

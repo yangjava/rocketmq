@@ -18,7 +18,7 @@
 package org.apache.rocketmq.acl;
 
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
-
+// 访问验证器接口，主要定义两个接口。
 public interface AccessValidator {
     /**
      * Parse to get the AccessResource(user, resource, needed permission)
@@ -27,6 +27,7 @@ public interface AccessValidator {
      * @param remoteAddr
      * @return Plain access resource result,include access key,signature and some other access attributes.
      */
+    // 从请求头中解析本次请求对应的访问资源，即本次请求需要的访问权限。
     AccessResource parse(RemotingCommand request, String remoteAddr);
 
     /**
@@ -34,5 +35,7 @@ public interface AccessValidator {
      *
      * @param accessResource
      */
+    // 根据本次需要访问的权限，与请求用户拥有的权限进行对比验证，
+    // 判断是拥有权限，如果没有访问该操作的权限，则抛出异常，否则放行。
     void validate(AccessResource accessResource);
 }

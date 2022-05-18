@@ -238,6 +238,7 @@ public class MQClientInstance {
                     // Start various schedule tasks
                     this.startScheduledTask();
                     // Start pull service
+                    // 开启拉去消息的线程pullMessageService
                     this.pullMessageService.start();
                     // Start rebalance service
                     // MQClientInstance 持有一个 RebalanceService 线程并启动它
@@ -948,7 +949,8 @@ public class MQClientInstance {
             }
         }
     }
-
+    // 注册producer到producerTable（ConcurrentHashMap）,
+    // key为producerGroup名称，不同的produer需要设置不同的producerGroup名称
     public boolean registerProducer(final String group, final DefaultMQProducerImpl producer) {
         if (null == group || null == producer) {
             return false;

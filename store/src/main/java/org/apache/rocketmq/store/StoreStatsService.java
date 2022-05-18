@@ -418,12 +418,13 @@ public class StoreStatsService extends ServiceThread {
 
     public HashMap<String, String> getRuntimeInfo() {
         HashMap<String, String> result = new HashMap<String, String>(64);
-
+        //获取设置信息总次数
         Long totalTimes = getPutMessageTimesTotal();
+        //获取到0次 则认为试一次
         if (0 == totalTimes) {
             totalTimes = 1L;
         }
-
+        //格式化运行时间
         result.put("bootTimestamp", String.valueOf(this.messageStoreBootTimestamp));
         result.put("runtime", this.getFormatRuntime());
         result.put("putMessageEntireTimeMax", String.valueOf(this.putMessageEntireTimeMax));

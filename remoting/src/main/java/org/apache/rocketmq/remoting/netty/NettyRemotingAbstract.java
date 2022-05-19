@@ -151,15 +151,21 @@ public abstract class NettyRemotingAbstract {
      * @param msg incoming remoting command.
      * @throws Exception if there were any error while processing the incoming command.
      */
-    // 对接收到的消息做处理
-    // 处理分两种类型，请求处理和响应处理
+    // processMessageReceived方法接收到请求以后，
+    // 根据请求的类型做不同的逻辑处理，处理分两种类型，请求处理和响应处理
+    // 当类型是请求时，调用processRequestCommand方法处理，
+    // 当类型是响应时，调用processResponseCommand方法处理。
+    // 当生产者发送请求给Broker服务器时，会调用processRequestCommand方法处理
     public void processMessageReceived(ChannelHandlerContext ctx, RemotingCommand msg) throws Exception {
         final RemotingCommand cmd = msg;
         if (cmd != null) {
+            //根据类型处理不同的请求
             switch (cmd.getType()) {
+                //请求
                 case REQUEST_COMMAND:
                     processRequestCommand(ctx, cmd);
                     break;
+                //响应
                 case RESPONSE_COMMAND:
                     processResponseCommand(ctx, cmd);
                     break;
@@ -193,8 +199,10 @@ public abstract class NettyRemotingAbstract {
      * @param cmd request command.
      */
     public void processRequestCommand(final ChannelHandlerContext ctx, final RemotingCommand cmd) {
+        //通过请求码找到处理器与执行线程
         final Pair<NettyRequestProcessor, ExecutorService> matched = this.processorTable.get(cmd.getCode());
         final Pair<NettyRequestProcessor, ExecutorService> pair = null == matched ? this.defaultRequestProcessor : matched;
+        //请求id，根据请求id可以找到对应的响应
         final int opaque = cmd.getOpaque();
 
         if (pair != null) {
@@ -202,10 +210,13 @@ public abstract class NettyRemotingAbstract {
                 @Override
                 public void run() {
                     try {
+                        //执行钩子方法
                         doBeforeRpcHooks(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd);
+                        //响应回调
                         final RemotingCommand response = pair.getObject1().processRequest(ctx, cmd);
+                        //执行钩子方法
                         doAfterRpcHooks(RemotingHelper.parseChannelRemoteAddr(ctx.channel()), cmd, response);
-
+                        //如果不是单向的请求，则将结果返回
                         if (!cmd.isOnewayRPC()) {
                             if (response != null) {
                                 response.setOpaque(opaque);
@@ -224,7 +235,7 @@ public abstract class NettyRemotingAbstract {
                     } catch (Throwable e) {
                         log.error("process request exception", e);
                         log.error(cmd.toString());
-
+                        // 如果不是单向的请求，则将返回系统异常的响应
                         if (!cmd.isOnewayRPC()) {
                             final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_ERROR,
                                 RemotingHelper.exceptionSimpleDesc(e));
@@ -234,7 +245,11 @@ public abstract class NettyRemotingAbstract {
                     }
                 }
             };
+            // 创建完Runnable类后，先判断下处理器是否拒绝请求，如果拒绝请求，就返回系统繁忙的响应。
+            // 然后将请求封装为RequestTask任务交给执行线程执行，当执行线程执行过程发生了异常，
+            // 如果是单向的请求，就返回系统繁忙的响应。
 
+            //如果拒绝服务，那么将返回系统繁忙的响应
             if (pair.getObject1().rejectRequest()) {
                 final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
                     "[REJECTREQUEST]system busy, start flow control for a while");
@@ -244,6 +259,7 @@ public abstract class NettyRemotingAbstract {
             }
 
             try {
+                // 提交给线程处理
                 final RequestTask requestTask = new RequestTask(run, ctx.channel(), cmd);
                 pair.getObject2().submit(requestTask);
             } catch (RejectedExecutionException e) {
@@ -253,7 +269,7 @@ public abstract class NettyRemotingAbstract {
                         + pair.getObject2().toString()
                         + " request code: " + cmd.getCode());
                 }
-
+                //如果不是单向的请求
                 if (!cmd.isOnewayRPC()) {
                     final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
                         "[OVERLOAD]system busy, start flow control for a while");
@@ -262,6 +278,7 @@ public abstract class NettyRemotingAbstract {
                 }
             }
         } else {
+            //没有找到请求处理器，返回不支持该请求的响应
             String error = " request type " + cmd.getCode() + " not supported";
             final RemotingCommand response =
                 RemotingCommand.createResponseCommand(RemotingSysResponseCode.REQUEST_CODE_NOT_SUPPORTED, error);
@@ -277,17 +294,31 @@ public abstract class NettyRemotingAbstract {
      * @param ctx channel handler context.
      * @param cmd response command instance.
      */
+    // 当发送请求时，RocketMQ怎么通过请求找到响应结果？发送请求时，会生成一个唯一的id，这个id叫做请求id，
+    // 然后将请求id与响应结果Future保存在map中，这样通过请求id就可以找到对应的响应结果了。
+    // processResponseCommand方法首先从响应命令cmd中获取到请求id，然后通过请求id从responseTable获取到响应结果，
+    // 当响应结果responseFuture等于null时，说明接收的响应结果没有找到请求，只打印警告日志，
+    // 当responseFuture不等于null时，从responseTable删除请求id对应的响应。
+    // 如果responseFuture有回调方法，则执行回调方法executeInvokeCallback，
+    // 否则设置响应结果和释放信号量，释放信号量是因为在请求的时候，
+    // 首先需要获取信号量才能继续处理请求，当没有获取的信号量，
+    // 说明RocketMQ比较繁忙，不会处理请求，
+    // 所以在处理响应结果的时候，需要释放在请求时获取的信号量，
+    // 这样下一个请求过来的时候，就可以获取信号量进行请求了。
     public void processResponseCommand(ChannelHandlerContext ctx, RemotingCommand cmd) {
+        //获取请求id
         final int opaque = cmd.getOpaque();
+        //获取结果响应
         final ResponseFuture responseFuture = responseTable.get(opaque);
         if (responseFuture != null) {
             responseFuture.setResponseCommand(cmd);
-
+            //将缓存的结果响应删除
             responseTable.remove(opaque);
-
+            //如果执行回调不为空，则执行回调
             if (responseFuture.getInvokeCallback() != null) {
                 executeInvokeCallback(responseFuture);
             } else {
+                //否则设置响应和释放信号量
                 responseFuture.putResponse(cmd);
                 responseFuture.release();
             }

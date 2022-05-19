@@ -25,7 +25,10 @@ public abstract class ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
     public abstract String encode();
-
+    // load方法是抽象类ConfigManager的方法，该方法读取文件的内容解码成对应的配置对象，
+    // 如果文件中的内容为空，就读取备份文件中的内容进行解码。
+    // 读取的文件都是保存在user.home/store/config/下，
+    // user.home是用户目录，不同人的电脑user.home一般不同。
     public boolean load() {
         String fileName = null;
         try {

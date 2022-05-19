@@ -133,6 +133,15 @@ public class RouteInfoManager {
      * topicQueueTable、brokerLiveTable、filterServerTable.
      * 其实源码就是这么简单。
      */
+    /**
+     * 注册一个broker的过程解析为
+     * 从远程请求中，解析出需要注册的broker信息，包括集群信息，broker地址，名字，id，Ha地址，topic信息
+     * 根据集群名字，更新集群中的brokerName信息（一个brokerName对应多个broker）
+     * 将broker信息加入到broker地址table中，更新地址列表信息
+     * 如果broker是master并且topic信息不为空，判断topic信息有变动或者是首次注册，需要更新topic对应的broker列表
+     * 更新broker的连接信息
+     * 如果broker不是Master，将Master地址和Ha地址更新到连接信息中
+     */
     public RegisterBrokerResult registerBroker(
         final String clusterName,
         final String brokerAddr,
@@ -181,6 +190,7 @@ public class RouteInfoManager {
                 }
                 // 如果存在，直接替换原先的，registerFirst 设置为false，表示非第一次注册。
                 String oldAddr = brokerData.getBrokerAddrs().put(brokerId, brokerAddr);
+                // 判断broker是不是首次注册
                 registerFirst = registerFirst || (null == oldAddr);
 
                 /****brokerAddrTable****/
@@ -193,10 +203,13 @@ public class RouteInfoManager {
                  * 如果该主题未创建并且BrokerConfig的autoCreateTopicEnable为true时，
                  * 将返回MixAll.DEFAULT_TOPIC 的路由信息。
                  */
+                // 如果是master，并且topic信息有变动
                 if (null != topicConfigWrapper
                     && MixAll.MASTER_ID == brokerId) {
+                    // 如果是首次注册或者topic信息有变动
                     if (this.isBrokerTopicConfigChanged(brokerAddr, topicConfigWrapper.getDataVersion())
                         || registerFirst) {
+                        // 要更新topic对应的broker信息
                         ConcurrentMap<String, TopicConfig> tcTable =
                             topicConfigWrapper.getTopicConfigTable();
                         if (tcTable != null) {
@@ -233,6 +246,7 @@ public class RouteInfoManager {
                  */
                 if (MixAll.MASTER_ID != brokerId) {
                     String masterAddr = brokerData.getBrokerAddrs().get(MixAll.MASTER_ID);
+                    // 如果不是master的broker,获取到master对应的Ha信息和master地址信息，返回到结果
                     if (masterAddr != null) {
                         BrokerLiveInfo brokerLiveInfo = this.brokerLiveTable.get(masterAddr);
                         if (brokerLiveInfo != null) {
@@ -270,7 +284,7 @@ public class RouteInfoManager {
             prev.setLastUpdateTimestamp(System.currentTimeMillis());
         }
     }
-
+    // 创建或者是更新topic对应的broker信息
     private void createAndUpdateQueueData(final String brokerName, final TopicConfig topicConfig) {
         QueueData queueData = new QueueData();
         queueData.setBrokerName(brokerName);
@@ -442,6 +456,7 @@ public class RouteInfoManager {
         try {
             try {
                 this.lock.readLock().lockInterruptibly();
+                // 根据topic获取对应的broker连接信息
                 List<QueueData> queueDataList = this.topicQueueTable.get(topic);
                 if (queueDataList != null) {
                     topicRouteData.setQueueDatas(queueDataList);

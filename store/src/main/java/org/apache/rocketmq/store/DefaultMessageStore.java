@@ -197,27 +197,39 @@ public class DefaultMessageStore implements MessageStore {
         boolean result = true;
 
         try {
+            // 判断abort是否存在
+            // isTempFileExist方法判断abort是否存在，如果存在，说明Broker是正常关闭的，否则就是异常关闭。
             boolean lastExitOK = !this.isTempFileExist();
             log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
-
+            //加载定时消费服务器
+            // 读取user.home/store/config/下的delayOffset.json文件的内容，该文件内容保存的his延迟的位移数据。
             if (null != scheduleMessageService) {
+                //读取delayOffset.json的内筒
                 result = result && this.scheduleMessageService.load();
             }
 
             // load Commit Log
-            // 加载Commit Log
+            // 加载 CommitLog 文件, CommitLog 文件保存的是消息内容，每个CommitLog文件大小为1G。
             result = result && this.commitLog.load();
 
             // load Consume Queue
-            // 加载 Consume Queue
+            //加载消费者队列 文件consumequeue
+            // ConsumeQueue（消息消费队列）是消费消息的索引，消费者通过ConsumeQueue可以快速找到查找待消费的消息，
+            // consumequeue目录下的文件组织方式是：topic/queueId/fileName，
+            // 所以就可以快速找待消费的消息在哪一个Commit log 文件中。
             result = result && this.loadConsumeQueue();
 
             if (result) {
+                // 加载检查点文件checkpoint
                 this.storeCheckpoint =
                     new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
-
+                // 加载索引文件
+                // 加载索引文件，加载的是user.home/store/index/目录下文件，
+                // 文件名fileName是以创建时的时间戳命名的，所以可以通过时间区间来快速查询消息
+                // IndexFile的底层存储设计为在文件系统中实现HashMap结构，故底层实现为hash索引。
                 this.indexService.load(lastExitOK);
-
+                // 数据恢复
+                // 将CommitLog 文件的内容加载到内存中以及topic队列。
                 this.recover(lastExitOK);
 
                 log.info("load over, and the max phy offset = {}", this.getMaxPhyOffset());

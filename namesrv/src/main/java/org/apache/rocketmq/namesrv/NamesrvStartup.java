@@ -58,22 +58,22 @@ public class NamesrvStartup {
     private static Properties properties = null;
     private static CommandLine commandLine = null;
 
-    /**
-     * 启动类,开始Main方法
-     * @param args
-     */
+    // NamesrvStartup类就是NameServer服务器启动的启动类，
+    // NamesrvStartup类中有一个main启动类，main方法调用main0，main0主要流程代码
     public static void main(String[] args) {
         main0(args);
     }
-
+    // main0 方法的主要作用就是创建Name Server服务器的控制器，
+    // 并且启动Name Server服务器的控制器。
     public static NamesrvController main0(String[] args) {
 
         try {
-            //创建namesrvController
+            //创建NameServer服务器的控制器
             NamesrvController controller = createNamesrvController(args);
-            //初始化并启动NamesrvController
+            //启动NameServer服务器的控制器
             start(controller);
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
+            //打印启动日志
             log.info(tip);
             System.out.printf("%s%n", tip);
             return controller;
@@ -85,10 +85,17 @@ public class NamesrvStartup {
         return null;
     }
 
+    /**
+     * createNamesrvController方法主要做了几件事，
+     * 读取和解析配置信息，包括Name Server服务的配置信息、Netty 服务器的配置信息、
+     * 打印读取或者解析的配置信息、保存配置信息到本地文件中，
+     * 以及根据namesrvConfig配置和nettyServerConfig配置作为参数创建nameServer 服务器的控制器。
+     */
     public static NamesrvController createNamesrvController(String[] args) throws IOException, JoranException {
-        // 设置版本号为当前版本号
+        //设置rocketMQ的版本信息，REMOTING_VERSION_KEY的值为：rocketmq.remoting.version，CURRENT_VERSION的值为：V4_5_1
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
         //PackageConflictDetect.detectFastjson();
+        //构建命令行，添加帮助命令和Name Server的提示命令，将createNamesrvController方法的args参数进行解析
         //构造org.apache.commons.cli.Options,并添加-h -n参数，-h参数是打印帮助信息，-n参数是指定namesrvAddr
         Options options = ServerUtil.buildCommandlineOptions(new Options());
         //初始化commandLine，并在options中添加-c -p参数，-c指定nameserver的配置文件路径，-p标识打印配置信息
@@ -117,7 +124,8 @@ public class NamesrvStartup {
                 InputStream in = new BufferedInputStream(new FileInputStream(file));
                 properties = new Properties();
                 properties.load(in);
-                //反射的方式
+                // 首先将构建的命令行转换为Properties，
+                // 然后将通过反射的方式将Properties的属性转换为namesrvConfig的配置项和配置值。
                 MixAll.properties2Object(properties, namesrvConfig);
 
                 MixAll.properties2Object(properties, nettyServerConfig);
@@ -133,6 +141,7 @@ public class NamesrvStartup {
         // 在启动NameServer时可以
         // 先使用./mqnameserver -c configFile -p打印当前加载的配置属性
         if (commandLine.hasOption('p')) {
+            //打印nameServer 服务器配置类和 netty 服务器配置类的配置信息
             InternalLogger console = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_CONSOLE_NAME);
             MixAll.printObjectProperties(console, namesrvConfig);
             MixAll.printObjectProperties(console, nettyServerConfig);
@@ -157,7 +166,7 @@ public class NamesrvStartup {
 
         MixAll.printObjectProperties(log, namesrvConfig);
         MixAll.printObjectProperties(log, nettyServerConfig);
-        //创建NamesrvController
+        // 将namesrvConfig和nettyServerConfig作为参数创建nameServer 服务器的控制器
         final NamesrvController controller = new NamesrvController(namesrvConfig, nettyServerConfig);
         //将全局Properties的内容复制到NamesrvController.Configuration.allConfigs中
         // remember all configs to prevent discard
@@ -166,17 +175,19 @@ public class NamesrvStartup {
         return controller;
     }
 
+    // start方法主要作用就是进行初始化工作，然后进行启动Name Server控制器
     public static NamesrvController start(final NamesrvController controller) throws Exception {
 
         if (null == controller) {
             throw new IllegalArgumentException("NamesrvController is null");
         }
-
+        // 初始化nameserver 服务器，如果初始化失败则退出
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();
             System.exit(-3);
         }
+        // //添加关闭的钩子，进行内存清理、对象销毁等惭怍
         /**
          * 注册JVM 钩子函数并启动服务器，以便监听Broker、消息生产者的网络请求。
          * 如果代码中使用了线程池，一种优雅停机的方式就是注册一个JVM 钩子函数，
@@ -192,7 +203,7 @@ public class NamesrvStartup {
                 return null;
             }
         }));
-
+        // 启动
         controller.start();
 
         return controller;

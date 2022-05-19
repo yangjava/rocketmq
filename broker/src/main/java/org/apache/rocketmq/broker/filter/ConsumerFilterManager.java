@@ -229,7 +229,9 @@ public class ConsumerFilterManager extends ConfigManager {
     public String encode() {
         return encode(false);
     }
-
+    // consumerFilterManager.load()方法
+    // 读取的是consumerFilter.json和consumerFilter.json.bak的内容，
+    // 保存的是消费者过滤数据。
     @Override
     public String configFilePath() {
         if (this.brokerController != null) {

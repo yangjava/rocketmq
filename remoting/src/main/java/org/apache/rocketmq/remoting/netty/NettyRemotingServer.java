@@ -281,14 +281,17 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     }
     // 注册处理器，其实就是把请求码，处理器和执行器注册到NettyRemotingServer的processorTable中。
     // 执行器如果为空的话，会选择默认的publicExecutor
+    // Broker服务器在启动的时候，会注册各种处理器，
+    // 实际就是将请求码与请求码对应的处理器、执行线程保存在processorTable中。
     @Override
     public void registerProcessor(int requestCode, NettyRequestProcessor processor, ExecutorService executor) {
         ExecutorService executorThis = executor;
         if (null == executor) {
             executorThis = this.publicExecutor;
         }
-
+        // 处理器、线程执行器
         Pair<NettyRequestProcessor, ExecutorService> pair = new Pair<NettyRequestProcessor, ExecutorService>(processor, executorThis);
+        //缓存在map中
         this.processorTable.put(requestCode, pair);
     }
 
@@ -397,7 +400,9 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             ctx.fireChannelRead(msg.retain());
         }
     }
-
+    // Broker 是通过Netty处理各种请求通信的，当Broker启动时，就会启动netty，
+    // 当消息发送给Broker服务器时，消息会被交给NettyServerHandler的channelRead0方法处理
+    // channelRead0方法又将收到的请求或者响应交给processMessageReceived方法处理
     class NettyServerHandler extends SimpleChannelInboundHandler<RemotingCommand> {
 
         @Override

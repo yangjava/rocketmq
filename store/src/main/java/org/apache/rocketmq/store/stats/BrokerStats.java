@@ -40,7 +40,8 @@ public class BrokerStats {
     public BrokerStats(DefaultMessageStore defaultMessageStore) {
         this.defaultMessageStore = defaultMessageStore;
     }
-
+    // 每24小时打印昨天产生了多少消息，消费了多少消息的定时任务比较简单，
+    // 就是将昨天消息的生产和消费的数量统计出来，然后把这两个指标打印出来。
     public void record() {
         this.msgPutTotalYesterdayMorning = this.msgPutTotalTodayMorning;
         this.msgGetTotalYesterdayMorning = this.msgGetTotalTodayMorning;

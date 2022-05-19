@@ -62,6 +62,8 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
  * 网络处理器解析请求类型， 如果请求类型为RequestCode.REGISTER_BROKER ，
  * 则请求最终转发到RoutelnfoManager#registerBroker 。
  */
+// 这个类主要的功能是对netty传输的命令做解析，并根据不同的命令处理不同的业务。
+// 首先封装接口，处理Netty请求，所有的命令都封装成RemotingCommand。
 public class DefaultRequestProcessor implements NettyRequestProcessor {
     private static InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
@@ -84,12 +86,14 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
 
 
         switch (request.getCode()) {
+            // 存放KV
             case RequestCode.PUT_KV_CONFIG:
                 return this.putKVConfig(ctx, request);
             case RequestCode.GET_KV_CONFIG:
                 return this.getKVConfig(ctx, request);
             case RequestCode.DELETE_KV_CONFIG:
                 return this.deleteKVConfig(ctx, request);
+            // 注册broker
             case RequestCode.QUERY_DATA_VERSION:
                 return queryBrokerTopicConfig(ctx, request);
             case RequestCode.REGISTER_BROKER:
@@ -101,12 +105,14 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
                 }
             case RequestCode.UNREGISTER_BROKER:
                 return this.unregisterBroker(ctx, request);
+            // 通过topic获取对应的路由信息
             case RequestCode.GET_ROUTEINTO_BY_TOPIC:
                 return this.getRouteInfoByTopic(ctx, request);
             case RequestCode.GET_BROKER_CLUSTER_INFO:
                 return this.getBrokerClusterInfo(ctx, request);
             case RequestCode.WIPE_WRITE_PERM_OF_BROKER:
                 return this.wipeWritePermOfBroker(ctx, request);
+            // 获取名字服务上的topic list
             case RequestCode.GET_ALL_TOPIC_LIST_FROM_NAMESERVER:
                 return getAllTopicListFromNameserver(ctx, request);
             case RequestCode.DELETE_TOPIC_IN_NAMESRV:
@@ -141,9 +147,10 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
     public RemotingCommand putKVConfig(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        // 解析远程请求的头部信息
         final PutKVConfigRequestHeader requestHeader =
             (PutKVConfigRequestHeader) request.decodeCommandCustomHeader(PutKVConfigRequestHeader.class);
-
+        // 根据头部信息所带的名字空间和KV，存入到内存HashMap中
         this.namesrvController.getKvConfigManager().putKVConfig(
             requestHeader.getNamespace(),
             requestHeader.getKey(),
@@ -281,8 +288,10 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
 
     public RemotingCommand registerBroker(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
+        // 初始化返回对象
         final RemotingCommand response = RemotingCommand.createResponseCommand(RegisterBrokerResponseHeader.class);
         final RegisterBrokerResponseHeader responseHeader = (RegisterBrokerResponseHeader) response.readCustomHeader();
+        // 解析头部信息
         final RegisterBrokerRequestHeader requestHeader =
             (RegisterBrokerRequestHeader) request.decodeCommandCustomHeader(RegisterBrokerRequestHeader.class);
 
@@ -291,7 +300,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             response.setRemark("crc32 not match");
             return response;
         }
-
+        // 解析请求体
         TopicConfigSerializeWrapper topicConfigWrapper;
         if (request.getBody() != null) {
             topicConfigWrapper = TopicConfigSerializeWrapper.decode(request.getBody(), TopicConfigSerializeWrapper.class);
@@ -300,7 +309,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             topicConfigWrapper.getDataVersion().setCounter(new AtomicLong(0));
             topicConfigWrapper.getDataVersion().setTimestamp(0);
         }
-
+        // 调用路由管理器，注册broker
         RegisterBrokerResult result = this.namesrvController.getRouteInfoManager().registerBroker(
             requestHeader.getClusterName(),
             requestHeader.getBrokerAddr(),
@@ -311,7 +320,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             null,
             ctx.channel()
         );
-
+        // 返回结构体中，会带着master的信息和Ha的信息
         responseHeader.setHaServerAddr(result.getHaServerAddr());
         responseHeader.setMasterAddr(result.getMasterAddr());
 

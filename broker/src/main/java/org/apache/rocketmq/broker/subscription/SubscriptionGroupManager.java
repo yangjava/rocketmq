@@ -139,7 +139,9 @@ public class SubscriptionGroupManager extends ConfigManager {
     public String encode() {
         return this.encode(false);
     }
-
+    // subscriptionGroupManager.load()方法
+    // 读取subscriptionGroup.json和subscriptionGroup.json.bak文件，
+    // 保存订阅组数据（消费者分组数据）
     @Override
     public String configFilePath() {
         return BrokerPathConfigHelper.getSubscriptionGroupPath(this.brokerController.getMessageStoreConfig()

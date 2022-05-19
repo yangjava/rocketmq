@@ -130,6 +130,7 @@ public class TopicConfigManager extends ConfigManager {
         }
         {
             // 如果Broker开启了消息轨迹跟踪(traceTopicEnable=true)时
+            // 如果Broker开启了消息轨迹跟踪(traceTopicEnable=true)时，会自动创建默认消息轨迹的topic路由信息，注意其读写队列数为1。
             if (this.brokerController.getBrokerConfig().isTraceTopicEnable()) {
                 // 会自动创建默认消息轨迹的topic路由信息
                 String topic = this.brokerController.getBrokerConfig().getMsgTraceTopicName();
@@ -397,7 +398,9 @@ public class TopicConfigManager extends ConfigManager {
     public String encode() {
         return encode(false);
     }
-
+    // topicConfigManager.load()读取topics.json文件，
+    // 如果该文件的内容为空，那么就读取topics.json.bak文件内容，
+    // topics.json保存的是topic数据；
     @Override
     public String configFilePath() {
         return BrokerPathConfigHelper.getTopicConfigPath(this.brokerController.getMessageStoreConfig()

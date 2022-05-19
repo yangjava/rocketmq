@@ -40,6 +40,9 @@ import org.apache.rocketmq.srvutil.FileWatchService;
 
 /**
  * 核心控制器
+ * NamesrvController类的作用就是为Name Server服务的启动提供具体的逻辑实现，
+ * 主要包括配置信息的加载、远程通信服务器的创建和加载、
+ * 默认处理器的注册以及心跳检测机器监控Broker的健康状态等。
  */
 public class NamesrvController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
@@ -88,24 +91,17 @@ public class NamesrvController {
      * @return
      */
     public boolean initialize() {
-        /**
-         * 加载KV配置
-         * 加载kvConfigPath下kvConfig.json配置文件里的KV配置，
-         * 然后将这些配置放到KVConfigManager#configTable属性中
-         */
+        // 加载KV配置
+        // 加载kvConfigPath下kvConfig.json配置文件里的KV配置，
+        // 然后将这些配置放到KVConfigManager#configTable属性中
         this.kvConfigManager.load();
-        /**
-         * 创建NettyServer网络处理对象
-         * 根据nettyServerConfig初始化一个netty服务器。
-         */
+        // 创建netty远程服务器，用来进行网络传输以及通信
         //brokerHousekeepingService是在NamesrvController实例化时构造函数里实例化的，该类负责Broker连接事件的处理，实现了ChannelEventListener，主要用来管理RouteInfoManager的brokerLiveTable
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
         //初始化负责处理Netty网络交互数据的线程池，默认线程数是8个
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
-        //注册Netty服务端业务处理逻辑，如果开启了clusterTest，
-        // 那么注册的请求处理类是ClusterTestRequestProcessor，
-        // 否则请求处理类是DefaultRequestProcessor
+        //注册处理器
         this.registerProcessor();
         /***********心跳
         /**
@@ -113,6 +109,7 @@ public class NamesrvController {
          * 移除处于不激活状态的Broker
          * 注册心跳机制线程池，延迟5秒启动，每隔10秒遍历RouteInfoManager#brokerLiveTable这个属性，用来扫描不存活的broker
          */
+        //每10秒扫描不活跃的broker
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -124,6 +121,7 @@ public class NamesrvController {
          * 定时任务: NameServer每隔10 分钟打印一次KV 配置
          * 注册打印KV配置线程池，延迟1分钟启动、每10分钟打印出kvConfig配置
          */
+        //每10秒打印配置信息（key-value）
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -174,7 +172,9 @@ public class NamesrvController {
 
         return true;
     }
-
+    //注册Netty服务端业务处理逻辑，如果开启了clusterTest，
+    // 那么注册的请求处理类是ClusterTestRequestProcessor，
+    // 否则请求处理类是DefaultRequestProcessor
     private void registerProcessor() {
         if (namesrvConfig.isClusterTest()) {
 

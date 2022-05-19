@@ -189,6 +189,8 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.producerGroup = producerGroup;
         defaultMQProducerImpl = new DefaultMQProducerImpl(this, rpcHook);
         //if client open the message trace feature
+        // 消息轨迹数据还是存储在RocketMQ的broker，每条轨迹数据就像普通消息一样，发送到指定的topic上。
+        // 原始消息的ID和KEYS会做为轨迹消息的KEYS，这样可以用来检索指定消息的轨迹数据。
         // 是否开启消息轨迹
         // boolean enableMsgTrace 是否开启跟踪消息轨迹，默认为false。
         // String customizedTraceTopic 如果开启消息轨迹跟踪，用来存储消息轨迹数据所属的主题名称，默认为：RMQ_SYS_TRACE_TOPIC。

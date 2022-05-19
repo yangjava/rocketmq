@@ -155,7 +155,9 @@ public class ConsumerOffsetManager extends ConfigManager {
     public String encode() {
         return this.encode(false);
     }
-
+    // consumerOffsetManager.load()方法
+    // 读取consumerOffset.json和consumerOffset.json.bak文件，
+    // 保存的是消费者位移数据；
     @Override
     public String configFilePath() {
         return BrokerPathConfigHelper.getConsumerOffsetPath(this.brokerController.getMessageStoreConfig().getStorePathRootDir());

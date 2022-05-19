@@ -43,7 +43,7 @@ public class KVConfigManager {
     private final NamesrvController namesrvController;
     // lock 是一个读写锁，用来控制并发
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    // configTable 就是在内存中记录住的kv配置,第一级key为NameSpace(暂时什么用还不清楚)
+    // configTable 就是在内存中记录住的kv配置,第一级key为NameSpace
     private final HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable =
         new HashMap<String, HashMap<String, String>>();
     // 传入一个NamesrvController，目的是为了后面获取到kvConfig的配置路径
@@ -51,6 +51,7 @@ public class KVConfigManager {
         this.namesrvController = namesrvController;
     }
     // 加载配置文件，读取到内存的configTable中
+    // 获取默认名字空间下的所有KV，加载到内存中
     public void load() {
         String content = null;
         try {

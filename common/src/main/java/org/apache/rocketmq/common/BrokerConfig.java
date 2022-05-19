@@ -63,6 +63,7 @@ public class BrokerConfig {
     private String messageStorePlugIn = "";
     @ImportantField
     private String msgTraceTopicName = MixAll.RMQ_SYS_TRACE_TOPIC;
+    // 设置为true，broker启动的时候会初始化存储轨迹数据的默认topic：RMQ_SYS_TRACE_TOPIC;
     @ImportantField
     private boolean traceTopicEnable = false;
     /**

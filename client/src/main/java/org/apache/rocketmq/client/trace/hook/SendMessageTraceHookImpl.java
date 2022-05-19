@@ -48,11 +48,12 @@ public class SendMessageTraceHookImpl implements SendMessageHook {
     @Override
     public void sendMessageBefore(SendMessageContext context) {
         //if it is message trace data,then it doesn't recorded
-        // 如果topic主题为消息轨迹的Topic，直接返回。
+        // 如果topic主题为消息轨迹的Topic，直接返回。轨迹消息自己不需要添加消息轨迹
         if (context == null || context.getMessage().getTopic().startsWith(((AsyncTraceDispatcher) localDispatcher).getTraceTopicName())) {
             return;
         }
         //build the context content of TuxeTraceContext
+        // 发送前采集的轨迹数据如下
         // 在消息发送上下文中，设置用来跟踪消息轨迹的上下环境，
         // 里面主要包含一个TraceBean集合、追踪类型（TraceType.Pub）与生产者所属的组。
         TraceContext tuxeContext = new TraceContext();

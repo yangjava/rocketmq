@@ -74,11 +74,12 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             case RequestCode.CONSUMER_SEND_MSG_BACK:
                 return this.consumerSendMsgBack(ctx, request);
             default:
+                //解析发送消息请求头
                 SendMessageRequestHeader requestHeader = parseRequestHeader(request);
                 if (requestHeader == null) {
                     return null;
                 }
-
+                //发送消息实体
                 mqtraceContext = buildMsgContext(ctx, requestHeader);
                 this.executeSendMessageHookBefore(ctx, request, mqtraceContext);
 
@@ -303,12 +304,19 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return true;
     }
 
+    /**
+     * sendMessage方法先创建发送消息响应头，从发送消息请求头获取消息内容，
+     * 创建msgInner消息并设置消息的属性。
+     * 如果消息是事务消息，则进行事务消息的处理，
+     * 否则，进行普通消息的处理。
+     */
     private RemotingCommand sendMessage(final ChannelHandlerContext ctx,
                                         final RemotingCommand request,
                                         final SendMessageContext sendMessageContext,
                                         final SendMessageRequestHeader requestHeader) throws RemotingCommandException {
-
+        //创建响应结果
         final RemotingCommand response = RemotingCommand.createResponseCommand(SendMessageResponseHeader.class);
+        //发送消息响应头
         final SendMessageResponseHeader responseHeader = (SendMessageResponseHeader)response.readCustomHeader();
         //标识RPC的SeqNumber
         response.setOpaque(request.getOpaque());
@@ -331,16 +339,17 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         if (response.getCode() != -1) {
             return response;
         }
-
+        //消息体
         final byte[] body = request.getBody();
-
+        //队列id
         int queueIdInt = requestHeader.getQueueId();
+        //根据topic获取topic配置
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
-
+        //队列小于0，随机给一个
         if (queueIdInt < 0) {
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
         }
-
+        //消息
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
         msgInner.setTopic(requestHeader.getTopic());
         msgInner.setQueueId(queueIdInt);
@@ -367,6 +376,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         //判断broker是否拒绝事物消息[rejectTransactionMessage]默认false
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         if (traFlag != null && Boolean.parseBoolean(traFlag)) {
+            //如果拒绝事务消息
             if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
                 response.setCode(ResponseCode.NO_PERMISSION);
                 response.setRemark(
@@ -374,9 +384,10 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                         + "] sending transaction message is forbidden");
                 return response;
             }
+            //处理事务消息
             putMessageResult = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
         } else {
-            //消息存储
+            //消息存储，处理普通消息
             putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
         }
 

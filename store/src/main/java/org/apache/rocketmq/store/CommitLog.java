@@ -619,6 +619,7 @@ public class CommitLog {
         //mappedFileQueue 管理这些连续的CommitLog文件
         //MappedFile 和 MappedFileQueue高性能的磁盘接口
         //mappedFileQueue可以理解为commitLog文件夹，而MappedFile对应文件夹下的文件
+        // 获取最后一个MappedFile
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
         // 加锁，默认使用自旋锁。
         // 依赖于messageStoreConfig#useReentrantLockWhenPutMessage配置

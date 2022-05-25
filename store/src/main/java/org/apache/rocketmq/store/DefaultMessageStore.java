@@ -388,7 +388,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
-        // 如果当前Broker 停止工作则拒绝消息写入
+        //  检查store状态 如果当前Broker 停止工作则拒绝消息写入
         if (this.shutdown) {
             log.warn("message store has shutdown, so putMessage is forbidden");
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);

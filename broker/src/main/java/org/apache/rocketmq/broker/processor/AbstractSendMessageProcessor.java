@@ -300,17 +300,31 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         }
     }
 
+    /**
+     *  RocketMQ为了发送消息的性能，除了会对消息进行压缩外，
+     *  还会将消息转换为更轻量的消息进行发送，
+     *  更轻量的消息就是将原来的消息换成不利于阅读的格式，
+     *  这样消息就会变得更小，传输起来就更快。
+     *
+     * parseRequestHeader方法通过请求码的类型解析消息发送请求头，
+     * 如果是批量消息和更轻量的消息，就解析为SendMessageRequestHeaderV2，
+     * 否则就解析为SendMessageRequestHeader。
+     *
+     */
     protected SendMessageRequestHeader parseRequestHeader(RemotingCommand request)
         throws RemotingCommandException {
-
+        //发送消息请求头，版本2
         SendMessageRequestHeaderV2 requestHeaderV2 = null;
+        //发送消息请求头，版本1
         SendMessageRequestHeader requestHeader = null;
         switch (request.getCode()) {
+            //批量消息，发送消息版本2
             case RequestCode.SEND_BATCH_MESSAGE:
             case RequestCode.SEND_MESSAGE_V2:
                 requestHeaderV2 =
                     (SendMessageRequestHeaderV2) request
                         .decodeCommandCustomHeader(SendMessageRequestHeaderV2.class);
+                //普通消息发送
             case RequestCode.SEND_MESSAGE:
                 if (null == requestHeaderV2) {
                     requestHeader =

@@ -25,6 +25,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 /**
  * Base interface for MQ management
  */
+// MQ管理类
 public interface MQAdmin {
     /**
      * Creates an topic

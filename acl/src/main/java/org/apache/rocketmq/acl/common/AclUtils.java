@@ -126,6 +126,7 @@ public class AclUtils {
 
     }
 
+    //工具类，从yaml文件中获取对象
     public static <T> T getYamlDataObject(String path, Class<T> clazz) {
         Yaml ymal = new Yaml();
         FileInputStream fis = null;

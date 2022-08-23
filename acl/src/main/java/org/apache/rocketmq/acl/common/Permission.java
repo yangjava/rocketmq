@@ -23,11 +23,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.acl.plain.PlainAccessResource;
 import org.apache.rocketmq.common.protocol.RequestCode;
 
+// 权限
 public class Permission {
-
+    // 拒绝
     public static final byte DENY = 1;
+    // PUB  SUB
     public static final byte ANY = 1 << 1;
+    // 发布权限
     public static final byte PUB = 1 << 2;
+    // 订阅权限
     public static final byte SUB = 1 << 3;
 
     public static final Set<Integer> ADMIN_CODE = new HashSet<Integer>();

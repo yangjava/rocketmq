@@ -143,49 +143,49 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Queue allocation algorithm specifying how message queues are allocated to each consumer clients.
      */
-    //集群模式下消息队列负载策略
+    // 集群模式下消息队列负载策略
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy;
 
     /**
      * Subscription relationship
      */
-    //消息过滤关系
+    // 消息过滤关系
     private Map<String /* topic */, String /* sub expression */> subscription = new HashMap<String, String>();
 
     /**
      * Message listener
      */
-    //消息消费监听器
+    // 消息消费监听器
     private MessageListener messageListener;
 
     /**
      * Offset Storage
      */
-    //消息消费进度存储器
+    // 消息消费进度存储器
     private OffsetStore offsetStore;
 
     /**
      * Minimum consumer thread number
      */
-    //消费线程最小线程数
+    // 消费线程最小线程数
     private int consumeThreadMin = 20;
 
     /**
      * Max consumer thread number
      */
-    //消费线程最大线程数，因为消费线程池用的是无界队列，所以这个参数用不上，原因请参考线程池原理
+    // 消费线程最大线程数，因为消费线程池用的是无界队列，所以这个参数用不上，原因请参考线程池原理
     private int consumeThreadMax = 20;
 
     /**
      * Threshold for dynamic adjustment of the number of thread pool
      */
-    //动态调整线程数量的阀值
+    // 动态调整线程数量的阀值
     private long adjustThreadPoolNumsThreshold = 100000;
 
     /**
      * Concurrently max span offset.it has no effect on sequential consumption
      */
-    //并发消费时拉取消息前会有流控，会判断处理队列中最大偏移量和最小偏移量的跨度，不能大于2000
+    // 并发消费时拉取消息前会有流控，会判断处理队列中最大偏移量和最小偏移量的跨度，不能大于2000
     private int consumeConcurrentlyMaxSpan = 2000;
 
     /**
@@ -228,25 +228,25 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Message pull Interval
      */
-    //push模式下任务拉取的时间间隔
+    // push模式下任务拉取的时间间隔
     private long pullInterval = 0;
 
     /**
      * Batch consumption size
      */
-    //每次消费者实际消费的数量，不是从broker端拉取的数量
+    // 每次消费者实际消费的数量，不是从broker端拉取的数量
     private int consumeMessageBatchMaxSize = 1;
 
     /**
      * Batch pull size
      */
-    //从broker端拉取的数量
+    // 从broker端拉取的数量
     private int pullBatchSize = 32;
 
     /**
      * Whether update subscription relationship when every pull
      */
-    //是否每次拉取之后都更新订阅关系
+    // 是否每次拉取之后都更新订阅关系
     private boolean postSubscriptionWhenPull = false;
 
     /**
@@ -261,7 +261,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * If messages are re-consumed more than {@link #maxReconsumeTimes} before success, it's be directed to a deletion
      * queue waiting.
      */
-    //消息最大消费重试次数
+    // 消息最大消费重试次数
     private int maxReconsumeTimes = -1;
 
     /**
@@ -273,7 +273,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Maximum amount of time in minutes a message may block the consuming thread.
      */
-    //消费超时时间，15分钟
+    // 消费超时时间，15分钟
     private long consumeTimeout = 15;
 
     /**

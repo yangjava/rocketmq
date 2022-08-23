@@ -641,7 +641,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.consumeMessageService =
                         new ConsumeMessageConcurrentlyService(this, (MessageListenerConcurrently) this.getMessageListenerInner());
                 }
-                //只启动了清理等待处理消息服务
+                // 只启动了清理等待处理消息服务
                 this.consumeMessageService.start();
                 //注册（缓存）consumer，保证CID单例
                 boolean registerOK = mQClientFactory.registerConsumer(this.defaultMQPushConsumer.getConsumerGroup(), this);
